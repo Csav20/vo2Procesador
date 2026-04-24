@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="VO₂Smart Procesador — Firmware ESP32 v8.0 con 22 pantallas TFT y gestión de perfiles para el dispositivo físico VO₂Smart.">
+<title>VO₂Smart Procesador — Firmware ESP32 v8.0</title>
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black:#000; --white:#fff;
+    --cyan:#70d4e9; --cyan-dark:#4ab8d4; --cyan-glow:rgba(112,212,233,0.12);
+    --green:#22c55e; --yellow:#ffd60a; --red:#ff453a;
+    --chip:#0b1022; --chip2:#131a2e;
+    --card:rgba(255,255,255,0.04); --card-b:rgba(255,255,255,0.08);
+    --mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:'Inter',-apple-system,sans-serif;background:#000;color:#fff;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+  ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px;}
+
+  nav{position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(20px) saturate(180%);background:rgba(0,0,0,0.78);border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;padding:0 44px;height:52px;}
+  .nav-logo{display:flex;align-items:center;gap:10px;font-size:1rem;font-weight:700;text-decoration:none;color:#fff;}
+  .nav-logo svg{width:28px;height:28px;}
+  .nav-links{display:flex;gap:28px;}
+  .nav-links a{font-size:0.8rem;color:rgba(255,255,255,0.6);text-decoration:none;transition:color .2s;}
+  .nav-links a:hover{color:#fff;}
+  .nav-cta{background:var(--cyan);color:#000;border:none;border-radius:20px;padding:7px 18px;font-size:0.8rem;font-weight:700;cursor:pointer;text-decoration:none;transition:background .2s;}
+  .nav-cta:hover{background:var(--cyan-dark);}
+
+  #hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 40px 80px;position:relative;overflow:hidden;}
+  .hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 50% 45%,rgba(112,212,233,0.1) 0%,transparent 65%);}
+  .eyebrow{font-size:0.72rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);border:1px solid rgba(112,212,233,0.3);border-radius:20px;padding:6px 16px;display:inline-block;margin-bottom:26px;}
+  .hero-title{font-size:clamp(2.8rem,8vw,6.5rem);font-weight:900;line-height:1;letter-spacing:-.04em;margin-bottom:26px;}
+  .hl{background:linear-gradient(135deg,var(--cyan) 0%,#a0f0ff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .hero-sub{font-size:clamp(1rem,2.2vw,1.3rem);color:rgba(255,255,255,0.55);max-width:580px;line-height:1.65;margin-bottom:48px;}
+  .hero-btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+  .btn-p{background:var(--cyan);color:#000;border:none;border-radius:30px;padding:14px 34px;font-size:.95rem;font-weight:700;cursor:pointer;text-decoration:none;transition:all .22s;display:inline-flex;align-items:center;gap:8px;}
+  .btn-p:hover{background:var(--cyan-dark);transform:translateY(-2px);}
+  .btn-s{background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.22);border-radius:30px;padding:14px 34px;font-size:.95rem;font-weight:500;cursor:pointer;text-decoration:none;transition:all .22s;display:inline-flex;align-items:center;gap:8px;}
+  .btn-s:hover{border-color:rgba(255,255,255,0.45);transform:translateY(-2px);}
+
+  /* DEVICE TFT mockup */
+  .device-mockup{margin-top:64px;display:flex;gap:20px;justify-content:center;flex-wrap:wrap;}
+  .tft-device{background:linear-gradient(145deg,#1a1a2e,#0b1022);border:2px solid rgba(112,212,233,0.25);border-radius:16px;padding:12px;width:200px;box-shadow:0 30px 60px rgba(0,0,0,0.7),0 0 40px rgba(112,212,233,0.06);position:relative;}
+  .tft-device::before{content:'';position:absolute;top:0;left:20%;right:20%;height:1px;background:linear-gradient(90deg,transparent,rgba(112,212,233,0.5),transparent);}
+  .tft-btns{display:flex;gap:6px;margin-bottom:8px;padding:0 4px;}
+  .tft-btn{width:12px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2);}
+  .tft-screen{background:#000;border-radius:8px;padding:14px 12px;font-family:var(--mono);min-height:120px;border:1px solid rgba(255,255,255,0.1);}
+  .tft-title{font-size:0.6rem;letter-spacing:.06em;margin-bottom:10px;}
+  .tft-row{font-size:0.62rem;margin-bottom:5px;display:flex;justify-content:space-between;}
+  .tft-val{font-weight:700;}
+  .tft-num{font-size:0.65rem;text-align:center;margin-bottom:4px;}
+  .tft-badge{display:inline-block;font-size:0.5rem;background:rgba(112,212,233,0.15);border:1px solid rgba(112,212,233,0.2);border-radius:4px;padding:2px 6px;color:var(--cyan);margin-top:8px;}
+  .dot-live{width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;animation:pulse 1.5s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);max-width:820px;margin:0 auto;background:var(--card);border:1px solid var(--card-b);border-radius:20px;overflow:hidden;}
+  .stat{padding:28px 20px;text-align:center;border-right:1px solid var(--card-b);}
+  .stat:last-child{border-right:none;}
+  .stat-n{font-size:2.2rem;font-weight:900;letter-spacing:-.04em;background:linear-gradient(135deg,var(--cyan),#a0f0ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .stat-l{font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:4px;}
+
+  section{padding:110px 40px;max-width:1100px;margin:0 auto;}
+  .sec-eyebrow{font-size:.72rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);margin-bottom:16px;}
+  .sec-title{font-size:clamp(1.8rem,4.5vw,3.2rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:16px;}
+  .sec-body{font-size:1rem;color:rgba(255,255,255,0.52);line-height:1.75;max-width:520px;}
+  .divider{border:none;border-top:1px solid rgba(255,255,255,0.07);margin:0;}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:start;}
+
+  /* SCREEN GRID */
+  .screen-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:40px;}
+  .scr{background:var(--card);border:1px solid var(--card-b);border-radius:14px;padding:16px;transition:all .3s;}
+  .scr:hover{background:rgba(112,212,233,0.07);border-color:rgba(112,212,233,0.25);transform:translateY(-3px);}
+  .scr-num{font-size:0.62rem;color:rgba(255,255,255,0.25);font-family:var(--mono);margin-bottom:6px;}
+  .scr-name{font-size:0.82rem;font-weight:600;}
+  .scr-desc{font-size:0.7rem;color:rgba(255,255,255,0.38);margin-top:4px;}
+  .scr.key{border-color:rgba(112,212,233,0.25);background:rgba(112,212,233,0.06);}
+
+  /* CODE BLOCK */
+  .code-block{background:var(--chip);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:28px;margin-top:32px;font-family:var(--mono);font-size:0.8rem;line-height:1.9;overflow-x:auto;}
+  .kw{color:#c792ea;} .ty{color:var(--cyan);} .cm{color:rgba(255,255,255,0.3);}
+  .str{color:#c3e88d;} .num{color:#f78c6c;}
+
+  /* ECOSYSTEM */
+  .eco{display:flex;flex-direction:column;align-items:center;gap:0;margin-top:40px;background:var(--card);border:1px solid var(--card-b);border-radius:20px;padding:36px;}
+  .eco-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;}
+  .eco-node{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 20px;font-size:0.82rem;font-weight:600;text-align:center;min-width:150px;}
+  .eco-node.hl{background:rgba(112,212,233,0.1);border-color:rgba(112,212,233,0.3);color:var(--cyan);}
+  .eco-arrow{color:rgba(255,255,255,0.2);font-size:1rem;padding:3px;}
+  .eco-label{font-size:0.65rem;color:rgba(255,255,255,0.25);margin-top:4px;}
+
+  /* ROADMAP */
+  .roadmap{display:flex;flex-direction:column;gap:12px;margin-top:36px;}
+  .rm{display:flex;align-items:center;gap:14px;padding:15px 20px;border-radius:14px;border:1px solid var(--card-b);background:var(--card);}
+  .rm.done{border-color:rgba(34,197,94,0.2);background:rgba(34,197,94,0.04);}
+  .rm-text{font-size:0.88rem;font-weight:500;}
+  .rm-badge{margin-left:auto;font-size:0.67rem;font-weight:600;padding:3px 10px;border-radius:6px;}
+  .bdone{background:rgba(34,197,94,0.15);color:var(--green);}
+  .bnext{background:rgba(112,212,233,0.12);color:var(--cyan);}
+
+  .pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px;}
+  .pill{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:5px 14px;font-size:0.74rem;color:rgba(255,255,255,0.5);}
+
+  #cta{text-align:center;padding:130px 40px;background:radial-gradient(ellipse 70% 55% at 50% 50%,rgba(112,212,233,0.08) 0%,transparent 70%);}
+  footer{border-top:1px solid rgba(255,255,255,0.07);padding:44px 40px;text-align:center;color:rgba(255,255,255,0.3);font-size:0.82rem;}
+  footer a{color:rgba(255,255,255,0.38);text-decoration:none;}
+  footer a:hover{color:rgba(255,255,255,0.65);}
+  .footer-brand{font-size:1.1rem;font-weight:800;color:rgba(255,255,255,0.65);margin-bottom:10px;}
+
+  .fi{opacity:0;transform:translateY(26px);transition:opacity .65s ease,transform .65s ease;}
+  .fi.vis{opacity:1;transform:none;}
+
+  @media(max-width:768px){
+    nav{padding:0 20px;}.nav-links{display:none;}
+    section{padding:80px 20px;}.split{grid-template-columns:1fr;gap:40px;}
+    .screen-grid{grid-template-columns:repeat(2,1fr);}
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .stat{border-right:none;border-bottom:1px solid var(--card-b);}
+    .stat:nth-child(odd){border-right:1px solid var(--card-b);}
+    #hero{padding:100px 20px 60px;}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#" class="nav-logo">
+    <svg viewBox="0 0 120 120" fill="none">
+      <rect width="120" height="120" rx="28" fill="#0b1022"/>
+      <rect x="32" y="32" width="56" height="56" rx="8" fill="none" stroke="#70d4e9" stroke-width="2.5"/>
+      <rect x="42" y="42" width="36" height="36" rx="5" fill="#70d4e9" opacity="0.15"/>
+      <line x1="20" y1="44" x2="32" y2="44" stroke="#70d4e9" stroke-width="2"/>
+      <line x1="20" y1="54" x2="32" y2="54" stroke="#70d4e9" stroke-width="2"/>
+      <line x1="20" y1="64" x2="32" y2="64" stroke="#70d4e9" stroke-width="2"/>
+      <line x1="88" y1="44" x2="100" y2="44" stroke="#70d4e9" stroke-width="2"/>
+      <line x1="88" y1="54" x2="100" y2="54" stroke="#70d4e9" stroke-width="2"/>
+      <line x1="88" y1="64" x2="100" y2="64" stroke="#70d4e9" stroke-width="2"/>
+      <text x="60" y="57" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="800" fill="#70d4e9">VO₂</text>
+      <text x="60" y="69" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" fill="#486060">v8.0</text>
+    </svg>
+    VO₂Smart <span style="color:rgba(255,255,255,0.4);font-weight:400;margin-left:4px;">Procesador</span>
+  </a>
+  <div class="nav-links">
+    <a href="#pantallas">Pantallas</a>
+    <a href="#perfil">Perfil</a>
+    <a href="#ecosistema">Ecosistema</a>
+    <a href="#roadmap">Roadmap</a>
+  </div>
+  <a href="https://csav20.github.io/Vo2Smart-Interfaz/app.html" target="_blank" class="nav-cta">Web App →</a>
+</nav>
+
+<section id="hero">
+  <div class="hero-bg"></div>
+  <div class="eyebrow">ESP32 Firmware · ActionSmart® · Patente CL 2024024875</div>
+  <h1 class="hero-title"><span class="hl">Firmware v8.0</span><br>para el dispositivo<br>físico VO₂Smart.</h1>
+  <p class="hero-sub">22 pantallas TFT navegables. Perfiles en EEPROM. VO₂max estimado en el hardware. El cerebro del dispositivo.</p>
+  <div class="hero-btns">
+    <a href="https://github.com/Csav20/vo2Procesador" target="_blank" class="btn-p">⚡ Ver código</a>
+    <a href="https://csav20.github.io/Vo2Smart-Interfaz/app.html" target="_blank" class="btn-s">🌐 Web Interface</a>
+  </div>
+
+  <div class="device-mockup fi">
+    <!-- Screen 0: Boot -->
+    <div class="tft-device">
+      <div class="tft-btns"><div class="tft-btn"></div><div class="tft-btn"></div></div>
+      <div class="tft-screen">
+        <div class="tft-title" style="color:#70d4e9;text-align:center;">VO2Smart</div>
+        <div class="tft-num" style="color:rgba(255,255,255,0.5);font-size:0.55rem;">Firmware v8.0</div>
+        <div style="margin-top:10px;text-align:center;"><div class="dot-live"></div><span style="font-size:0.55rem;color:#22c55e;">Iniciando...</span></div>
+      </div>
+      <div style="text-align:center;"><div class="tft-badge">Pantalla 0 · Boot</div></div>
+    </div>
+    <!-- Screen 5: Dashboard -->
+    <div class="tft-device">
+      <div class="tft-btns"><div class="tft-btn"></div><div class="tft-btn"></div></div>
+      <div class="tft-screen">
+        <div class="tft-title" style="color:#fff;">Dashboard Principal</div>
+        <div class="tft-row"><span style="color:rgba(255,255,255,0.4);">FC</span><span class="tft-val" style="color:#22c55e;" id="hw-hr">142 bpm</span></div>
+        <div class="tft-row"><span style="color:rgba(255,255,255,0.4);">VO₂</span><span class="tft-val" style="color:#70d4e9;" id="hw-vo2">38 ml/kg</span></div>
+        <div class="tft-row"><span style="color:rgba(255,255,255,0.4);">Dist</span><span class="tft-val" style="color:#ffd60a;">3.2 km</span></div>
+      </div>
+      <div style="text-align:center;"><div class="tft-badge">Pantalla 5 · Live</div></div>
+    </div>
+    <!-- Screen 17: IA -->
+    <div class="tft-device">
+      <div class="tft-btns"><div class="tft-btn"></div><div class="tft-btn"></div></div>
+      <div class="tft-screen">
+        <div class="tft-title" style="color:#c792ea;">Módulo IA</div>
+        <div style="font-size:0.55rem;color:rgba(255,255,255,0.45);line-height:1.6;margin-top:6px;">Carga: Moderada<br>Rec: Continuar<br>Fatiga: Baja</div>
+        <div style="margin-top:8px;display:flex;gap:3px;">
+          <div style="height:20px;width:14%;background:#22c55e;border-radius:2px;"></div>
+          <div style="height:20px;width:22%;background:#22c55e;border-radius:2px;"></div>
+          <div style="height:20px;width:35%;background:#70d4e9;border-radius:2px;"></div>
+          <div style="height:20px;width:18%;background:#ffd60a;border-radius:2px;"></div>
+          <div style="height:20px;width:11%;background:#ff453a;border-radius:2px;"></div>
+        </div>
+      </div>
+      <div style="text-align:center;"><div class="tft-badge">Pantalla 17 · IA</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div style="padding:0 40px 100px;max-width:860px;margin:0 auto;">
+  <div class="stats fi">
+    <div class="stat"><div class="stat-n">22</div><div class="stat-l">pantallas TFT</div></div>
+    <div class="stat"><div class="stat-n">7</div><div class="stat-l">deportes soportados</div></div>
+    <div class="stat"><div class="stat-n">6</div><div class="stat-l">niveles fitness</div></div>
+    <div class="stat"><div class="stat-n">v8.0</div><div class="stat-l">versión firmware</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- PANTALLAS -->
+<section id="pantallas">
+  <div class="fi">
+    <div class="sec-eyebrow">22 pantallas TFT</div>
+    <h2 class="sec-title">Una UI completa en el hardware.</h2>
+    <p class="sec-body">Navegación por 2 botones físicos. Máquina de estados modular y extensible.</p>
+    <div class="screen-grid">
+      <div class="scr"><div class="scr-num">00</div><div class="scr-name">Inicio</div><div class="scr-desc">Boot · VO₂Smart v8.0</div></div>
+      <div class="scr"><div class="scr-num">01</div><div class="scr-name">Sensores</div><div class="scr-desc">Búsqueda BLE FC + VO₂</div></div>
+      <div class="scr"><div class="scr-num">02</div><div class="scr-name">Configuración</div><div class="scr-desc">Setup conexión</div></div>
+      <div class="scr"><div class="scr-num">03</div><div class="scr-name">Conectado</div><div class="scr-desc">Confirmación pairing</div></div>
+      <div class="scr"><div class="scr-num">04</div><div class="scr-name">Sincronización</div><div class="scr-desc">Streaming activo</div></div>
+      <div class="scr key"><div class="scr-num">05</div><div class="scr-name">Dashboard</div><div class="scr-desc">FC · VO₂ · Distancia</div></div>
+      <div class="scr"><div class="scr-num">06</div><div class="scr-name">Biomédicas</div><div class="scr-desc">Glucosa · Lactato</div></div>
+      <div class="scr key"><div class="scr-num">07</div><div class="scr-name">Entrenamiento</div><div class="scr-desc">Métricas en vivo</div></div>
+      <div class="scr"><div class="scr-num">08</div><div class="scr-name">Gráficos</div><div class="scr-desc">Rendimiento histórico</div></div>
+      <div class="scr key"><div class="scr-num">09</div><div class="scr-name">Metabólico</div><div class="scr-desc">RER · Sustratos</div></div>
+      <div class="scr"><div class="scr-num">10</div><div class="scr-name">Recuperación</div><div class="scr-desc">Post-ejercicio · HRV</div></div>
+      <div class="scr"><div class="scr-num">11</div><div class="scr-name">Alertas</div><div class="scr-desc">Notificaciones · Límites</div></div>
+      <div class="scr"><div class="scr-num">12</div><div class="scr-name">Config sistema</div><div class="scr-desc">Ajustes dispositivo</div></div>
+      <div class="scr"><div class="scr-num">13</div><div class="scr-name">Perfiles</div><div class="scr-desc">Gestión de atletas</div></div>
+      <div class="scr"><div class="scr-num">14</div><div class="scr-name">Modo offline</div><div class="scr-desc">Sin conectividad</div></div>
+      <div class="scr"><div class="scr-num">15</div><div class="scr-name">Exportación</div><div class="scr-desc">CSV · MicroSD · BLE</div></div>
+      <div class="scr"><div class="scr-num">16</div><div class="scr-name">Dispositivos</div><div class="scr-desc">Wearables externos</div></div>
+      <div class="scr key"><div class="scr-num">17</div><div class="scr-name">Módulo IA</div><div class="scr-desc">Recomendaciones locales</div></div>
+      <div class="scr"><div class="scr-num">18</div><div class="scr-name">Clínicas</div><div class="scr-desc">Historias longitudinales</div></div>
+      <div class="scr"><div class="scr-num">19</div><div class="scr-name">Simulación</div><div class="scr-desc">Protocolos de test</div></div>
+      <div class="scr"><div class="scr-num">20</div><div class="scr-name">Visualización</div><div class="scr-desc">UI personalizable</div></div>
+      <div class="scr"><div class="scr-num">21</div><div class="scr-name">Créditos</div><div class="scr-desc">Claudio Abarca · v8.0</div></div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- PERFIL -->
+<section id="perfil">
+  <div class="split fi">
+    <div>
+      <div class="sec-eyebrow">Gestión de perfiles</div>
+      <h2 class="sec-title">El atleta, persistido en EEPROM.</h2>
+      <p class="sec-body">Cada atleta tiene su perfil completo almacenado en el dispositivo. Sin nube. Sin pérdida de datos.</p>
+      <div style="margin-top:28px;display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--cyan);flex-shrink:0;"></div>
+          <div><div style="font-weight:600;font-size:.9rem;">7 deportes</div><div style="font-size:.78rem;color:rgba(255,255,255,0.4);">Running · Cycling · Swimming · Triathlon · Rowing · CrossFit · General</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--cyan);flex-shrink:0;"></div>
+          <div><div style="font-weight:600;font-size:.9rem;">6 niveles fitness</div><div style="font-size:.78rem;color:rgba(255,255,255,0.4);">Sedentario → Principiante → Recreativo → Entrenado → Atleta → Elite</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--cyan);flex-shrink:0;"></div>
+          <div><div style="font-weight:600;font-size:.9rem;">Cálculos automáticos</div><div style="font-size:.78rem;color:rgba(255,255,255,0.4);">VO₂max estimado · FC máx · Zonas entrenamiento · Factor calorías</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--cyan);flex-shrink:0;"></div>
+          <div><div style="font-weight:600;font-size:.9rem;">Integridad garantizada</div><div style="font-size:.78rem;color:rgba(255,255,255,0.4);">Checksum CRC32 en cada guardado</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="code-block">
+<span class="kw">typedef struct</span> {<br>
+&nbsp;&nbsp;<span class="cm">// Datos personales</span><br>
+&nbsp;&nbsp;<span class="kw">char</span> <span class="ty">name</span>[<span class="num">32</span>];<br>
+&nbsp;&nbsp;<span class="kw">uint8_t</span> <span class="ty">age</span>;<br>
+&nbsp;&nbsp;<span class="kw">float</span> <span class="ty">weight</span>; <span class="cm">// kg</span><br>
+&nbsp;&nbsp;<span class="kw">float</span> <span class="ty">vo2_max_estimated</span>;<br>
+&nbsp;&nbsp;<span class="kw">float</span> <span class="ty">hr_max</span>;<br>
+&nbsp;&nbsp;<br>
+&nbsp;&nbsp;<span class="cm">// Deporte y nivel</span><br>
+&nbsp;&nbsp;<span class="ty">sport_type_t</span> <span class="ty">sport</span>;<br>
+&nbsp;&nbsp;<span class="ty">fitness_level_t</span> <span class="ty">level</span>;<br>
+&nbsp;&nbsp;<br>
+&nbsp;&nbsp;<span class="cm">// Zonas (3, 5 o 7)</span><br>
+&nbsp;&nbsp;<span class="kw">uint8_t</span> <span class="ty">preferred_zones</span>;<br>
+&nbsp;&nbsp;<span class="kw">float</span> <span class="ty">zone_limits</span>[<span class="num">7</span>];<br>
+&nbsp;&nbsp;<br>
+&nbsp;&nbsp;<span class="cm">// Integridad</span><br>
+&nbsp;&nbsp;<span class="kw">uint32_t</span> <span class="ty">checksum</span>;<br>
+} <span class="ty">user_profile_t</span>;
+      </div>
+      <div class="pills">
+        <span class="pill">EEPROM nativa ESP32</span>
+        <span class="pill">TFT_eSPI</span>
+        <span class="pill">LVGL</span>
+        <span class="pill">ArduinoJson</span>
+        <span class="pill">Checksum CRC32</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ECOSISTEMA -->
+<section id="ecosistema">
+  <div class="fi">
+    <div class="sec-eyebrow">Ecosistema VO₂Smart</div>
+    <h2 class="sec-title">Hardware + Software unidos.</h2>
+    <p class="sec-body">Este firmware es la mitad del sistema. La otra mitad vive en el navegador.</p>
+    <div class="eco">
+      <div class="eco-row">
+        <div class="eco-node hl">vo2Procesador<div class="eco-label">ESP32 firmware</div></div>
+        <div style="display:flex;align-items:center;color:rgba(255,255,255,0.2);font-size:0.9rem;">←BLE/WiFi JSON→</div>
+        <div class="eco-node">Vo2Smart-Interfaz<div class="eco-label">Dashboard web BLE</div></div>
+      </div>
+      <div class="eco-arrow">↕</div>
+      <div class="eco-row">
+        <div class="eco-node hl">Pantalla TFT<div class="eco-label">22 screens · atleta</div></div>
+        <div class="eco-node">Coach · Médico<div class="eco-label">PC · smartphone</div></div>
+      </div>
+    </div>
+    <div class="pills" style="justify-content:center;margin-top:28px;">
+      <span class="pill">C++ Arduino</span>
+      <span class="pill">PlatformIO</span>
+      <span class="pill">ESP32</span>
+      <span class="pill">TFT_eSPI</span>
+      <span class="pill">LVGL</span>
+      <span class="pill">BLE 5.0</span>
+      <span class="pill">WiFi 6</span>
+      <span class="pill">EEPROM</span>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ROADMAP -->
+<section id="roadmap">
+  <div class="fi">
+    <div class="sec-eyebrow">Roadmap</div>
+    <h2 class="sec-title">Lo que viene.</h2>
+    <div class="roadmap">
+      <div class="rm done"><span>✅</span><div class="rm-text">22 pantallas TFT navegables (Firmware v8.0)</div><div class="rm-badge bdone">Listo</div></div>
+      <div class="rm done"><span>✅</span><div class="rm-text">Gestión de perfiles en EEPROM con checksum</div><div class="rm-badge bdone">Listo</div></div>
+      <div class="rm done"><span>✅</span><div class="rm-text">7 deportes + 6 niveles + estimación VO₂max</div><div class="rm-badge bdone">Listo</div></div>
+      <div class="rm"><span>🔮</span><div class="rm-text">Implementación completa de métricas en cada pantalla</div><div class="rm-badge bnext">Próximo</div></div>
+      <div class="rm"><span>🔮</span><div class="rm-text">BLE GATT Server — transmisión JSON al dashboard web</div><div class="rm-badge bnext">Próximo</div></div>
+      <div class="rm"><span>🔮</span><div class="rm-text">Logging en microSD — CSV automático</div><div class="rm-badge bnext">Próximo</div></div>
+      <div class="rm"><span>🔮</span><div class="rm-text">OTA Updates — actualización firmware inalámbrica</div><div class="rm-badge bnext">Futuro</div></div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<section id="cta">
+  <div class="eyebrow fi">Open Source · MIT</div>
+  <h2 class="sec-title fi" style="max-width:640px;margin:0 auto 16px;">La inteligencia fisiológica<br>corriendo en el hardware.</h2>
+  <p class="sec-body fi" style="max-width:460px;margin:0 auto 48px;">Firmware ESP32. 22 pantallas. Perfiles persistidos. Listo para compilar y flashear.</p>
+  <div class="hero-btns fi">
+    <a href="https://github.com/Csav20/vo2Procesador" target="_blank" class="btn-p">⚡ Ver código en GitHub</a>
+    <a href="https://csav20.github.io/Vo2Smart-Interfaz/app.html" target="_blank" class="btn-s">🌐 Web Interface</a>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-brand">VO₂Smart Procesador</div>
+  <div style="margin-bottom:14px;">
+    <a href="https://github.com/Csav20/vo2Procesador">GitHub</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/Csav20/Vo2Smart-Interfaz">Vo2Smart-Interfaz</a>
+    &nbsp;·&nbsp;
+    <a href="https://csav20.github.io/Vo2Smart-Interfaz/app.html">Web App</a>
+  </div>
+  <div>© 2024–2026 ActionSmart® — Claudio Abarca Vargas · 🇨🇱 Chile</div>
+  <div style="margin-top:6px;">Patente CL 2024024875 · MIT License</div>
+</footer>
+
+<script>
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('vis');obs.unobserve(e.target);}});},{threshold:0.1});
+document.querySelectorAll('.fi').forEach(el=>obs.observe(el));
+setInterval(()=>{
+  const hr=document.getElementById('hw-hr');
+  const vo2=document.getElementById('hw-vo2');
+  if(hr)hr.textContent=Math.floor(Math.random()*(175-138)+138)+' bpm';
+  if(vo2)vo2.textContent=(Math.random()*(44-34)+34).toFixed(1)+' ml/kg';
+},2000);
+</script>
+</body>
+</html>

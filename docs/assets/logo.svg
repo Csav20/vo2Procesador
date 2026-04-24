@@ -1,0 +1,21 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="120" height="120" rx="28" fill="#0b1022"/>
+  <!-- ESP32 chip -->
+  <rect x="32" y="32" width="56" height="56" rx="8" fill="none" stroke="#70d4e9" stroke-width="2.5"/>
+  <rect x="42" y="42" width="36" height="36" rx="5" fill="#70d4e9" opacity="0.15"/>
+  <!-- Pins left -->
+  <line x1="20" y1="44" x2="32" y2="44" stroke="#70d4e9" stroke-width="2"/>
+  <line x1="20" y1="54" x2="32" y2="54" stroke="#70d4e9" stroke-width="2"/>
+  <line x1="20" y1="64" x2="32" y2="64" stroke="#70d4e9" stroke-width="2"/>
+  <line x1="20" y1="74" x2="32" y2="74" stroke="#70d4e9" stroke-width="2"/>
+  <!-- Pins right -->
+  <line x1="88" y1="44" x2="100" y2="44" stroke="#70d4e9" stroke-width="2"/>
+  <line x1="88" y1="54" x2="100" y2="54" stroke="#70d4e9" stroke-width="2"/>
+  <line x1="88" y1="64" x2="100" y2="64" stroke="#70d4e9" stroke-width="2"/>
+  <line x1="88" y1="74" x2="100" y2="74" stroke="#70d4e9" stroke-width="2"/>
+  <!-- VO2 text inside chip -->
+  <text x="60" y="57" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="800" fill="#70d4e9">VO₂</text>
+  <text x="60" y="70" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" font-weight="600" fill="#486060">v8.0</text>
+  <!-- Label -->
+  <text x="60" y="108" text-anchor="middle" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" letter-spacing="1.5" fill="#4a5568">PROCESADOR</text>
+</svg>
