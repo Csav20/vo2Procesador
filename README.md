@@ -4,13 +4,14 @@
 
 # VO₂Smart Procesador
 
-**Firmware ESP32 para el dispositivo físico VO₂Smart — 22 pantallas TFT + gestión de perfiles**
+**Firmware ESP32 para el dispositivo físico VO₂Smart — LVGL v9 + ILI9341 + XPT2046 Touch + BLE**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-ESP32-E84A2F?style=for-the-badge&logo=espressif)](#hardware)
+[![Platform](https://img.shields.io/badge/Platform-ESP32--WROOM--32E-E84A2F?style=for-the-badge&logo=espressif)](#hardware)
 [![Framework](https://img.shields.io/badge/Framework-Arduino%20%7C%20PlatformIO-00979D?style=for-the-badge)](#instalación)
-[![Screens](https://img.shields.io/badge/Pantallas-22-70d4e9?style=for-the-badge)](#pantallas)
-[![Sports](https://img.shields.io/badge/Deportes-7-22c55e?style=for-the-badge)](#perfil-de-usuario)
+[![LVGL](https://img.shields.io/badge/UI-LVGL%20v9-70d4e9?style=for-the-badge)](#pantallas)
+[![Touch](https://img.shields.io/badge/Touch-XPT2046-22c55e?style=for-the-badge)](#hardware)
+[![Screens](https://img.shields.io/badge/Pantallas-6%20(UI%20avanzada)-ffd60a?style=for-the-badge)](#pantallas)
 
 [🌐 **GitHub Pages**](https://csav20.github.io/vo2Procesador/) · [📱 **Web Interface**](https://csav20.github.io/Vo2Smart-Interfaz/app.html) · [🔗 **Repo web**](https://github.com/Csav20/Vo2Smart-Interfaz)
 
@@ -24,17 +25,18 @@
 
 ## ✨ Qué es
 
-VO₂Smart Procesador es el **firmware ESP32** que corre directamente en el dispositivo físico VO₂Smart. Gestiona la interfaz TFT de 22 pantallas y los perfiles de usuario almacenados en EEPROM, complementando la [plataforma web](https://github.com/Csav20/Vo2Smart-Interfaz) que se conecta al dispositivo por BLE.
+VO₂Smart Procesador es el **firmware ESP32** que corre directamente en el dispositivo físico VO₂Smart. Implementa una interfaz táctil avanzada con **LVGL v9** sobre pantalla **ILI9341 320×240** y touch capacitivo **XPT2046**, con escaneo BLE real, perfiles de usuario persistentes y un dashboard completo de métricas fisiológicas.
 
 ```
-┌─────────────────────────────────────────────┐
-│         VO₂Smart Ecosystem                 │
-│                                             │
-│  [vo2Procesador]  ←BLE/WiFi→  [Interfaz web]│
-│  ESP32 firmware               Chrome/Edge  │
-│  22 pantallas TFT             Dashboard    │
-│  Perfiles EEPROM              IA + Informes │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│             VO₂Smart Ecosystem                  │
+│                                                 │
+│  [vo2Procesador]  ←BLE/WiFi→  [Interfaz web]   │
+│  ESP32-WROOM-32E              Chrome/Edge       │
+│  LVGL v9 + ILI9341            Dashboard web     │
+│  XPT2046 Touch                IA + Informes     │
+│  6 pantallas táctiles         BLE streaming     │
+└─────────────────────────────────────────────────┘
 ```
 
 ---
@@ -43,14 +45,46 @@ VO₂Smart Procesador es el **firmware ESP32** que corre directamente en el disp
 
 | Archivo | Descripción |
 |---|---|
-| `screen.cpp` | Firmware UI v8.0 — máquina de 22 pantallas TFT, botones, navegación |
+| `vo2smart_ui.cpp` | **UI avanzada v2.0** — LVGL v9 + ILI9341 + XPT2046 Touch + BLE real + 6 pantallas táctiles |
+| `screen.cpp` | Firmware UI v8.0 — máquina de 22 pantallas TFT, botones físicos, navegación |
 | `gestionusuario.cpp` | Módulo de perfil de usuario — EEPROM, zonas de entrenamiento, VO₂ estimado |
 
 ---
 
-## 🖥️ 22 Pantallas TFT
+## 🖥️ Pantallas LVGL v9 (`vo2smart_ui.cpp`)
 
-El firmware implementa una máquina de estados con 22 pantallas navegables mediante 2 botones físicos:
+Flujo táctil completo de 6 pantallas implementadas con LVGL v9:
+
+| # | Pantalla | Descripción |
+|---|---|---|
+| 0 | **Splash** | Boot screen VO₂Smart v2.0 — Patente 2024024875 |
+| 1 | **Sensor Select** | Tarjetas de selección: Analizador de gases + FC |
+| 2 | **BLE Devices** | Escaneo y listado de dispositivos Bluetooth en tiempo real |
+| 3 | **User Profile** | Perfil cargado desde Preferences (nombre, edad, peso, altura) |
+| 4 | **Start Test** | Pantalla de inicio de prueba de esfuerzo |
+| 5 | **Dashboard** | Métricas en vivo: VO₂, VCO₂, FC, VE, RER, Tiempo |
+
+### Dashboard en tiempo real
+
+```
+┌──────────────── VO2Smart - En Prueba ──────────────────┐
+│  VO2          VCO2           HR                        │
+│  45.2 ────── 38.1 ────────── 172                       │
+│  (verde)     (naranja)        (rojo)                   │
+│                                                        │
+│  VE           RER             Tiempo                   │
+│  65.3 ────── 0.84 ──────── 12:34                       │
+│  (azul)      (violeta)       (amarillo)                │
+│                                                        │
+│              [ DETENER ]                               │
+└────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🖥️ 22 Pantallas TFT (`screen.cpp`)
+
+Firmware v8.0 con máquina de estados completa mediante 2 botones físicos:
 
 | # | Pantalla | Descripción |
 |---|---|---|
@@ -120,36 +154,34 @@ typedef struct {
 | 5 | CrossFit |
 | 6 | General |
 
-### Niveles de condición física
-
-| ID | Nivel | Descripción |
-|---|---|---|
-| 0 | Sedentario | < 2 entrenamientos/semana |
-| 1 | Principiante | 2–3 entrenamientos/semana |
-| 2 | Recreativo | 3–4 entrenamientos/semana |
-| 3 | Entrenado | 4–6 entrenamientos/semana |
-| 4 | Atleta | > 6 entrenamientos/semana |
-| 5 | Elite | Competición de alto nivel |
-
-### Cálculos automáticos
-
-- **FC máxima estimada** — fórmulas por edad/género
-- **VO₂max estimado** — ecuaciones ACSM
-- **Zonas de entrenamiento** — calculadas desde FC reposo y máxima
-- **Factor calorías** — ajustado por perfil del atleta
-
 ---
 
 ## ⚡ Hardware requerido
 
 | Componente | Especificación |
 |---|---|
-| **MCU** | ESP32 Dev Module (o ESP32-C6) |
-| **Display** | TFT SPI — TFT_eSPI compatible |
-| **Botón NEXT** | GPIO 0 |
-| **Botón BACK** | GPIO 35 |
-| **UI Framework** | LVGL (para gestionusuario) |
-| **Persistencia** | EEPROM interna ESP32 |
+| **MCU** | ESP32-WROOM-32E |
+| **Display** | ILI9341 — 320×240 px, SPI |
+| **Touch** | XPT2046 — resistivo, 4-wire SPI |
+| **UI Framework** | LVGL v9 |
+| **Persistencia** | NVS Preferences (vo2smart_ui) / EEPROM (gestionusuario) |
+
+### Pinout (vo2smart_ui.cpp)
+
+| Señal | GPIO ESP32 |
+|---|---|
+| TFT CS | 15 |
+| TFT DC/RS | 2 |
+| TFT RESET | EN |
+| MOSI | 13 |
+| SCK | 14 |
+| MISO | 12 |
+| Backlight | 21 |
+| Touch DOUT | 39 |
+| Touch DIN | 32 |
+| Touch SCK | 25 |
+| Touch CS | 33 |
+| Touch IRQ | 36 |
 
 ---
 
@@ -162,19 +194,20 @@ typedef struct {
 pip install platformio
 ```
 
-Librerías requeridas (platformio.ini o Arduino IDE):
+Librerías requeridas:
 
 ```
 TFT_eSPI
-lvgl
+TFT_Touch
+lvgl (v9.x)
 ArduinoJson
-EEPROM (built-in ESP32)
+BLEDevice (ESP32 BLE Arduino)
+Preferences (built-in ESP32)
 ```
 
 ### Compilar y flashear
 
 ```bash
-# Clonar el repositorio
 git clone https://github.com/Csav20/vo2Procesador.git
 cd vo2Procesador
 
@@ -184,26 +217,16 @@ pio run --target upload
 pio device monitor --baud 115200
 ```
 
-### Con Arduino IDE
-
-1. Abrir `screen.cpp` como sketch principal
-2. Incluir `gestionusuario.cpp` en el proyecto
-3. Instalar librerías: TFT_eSPI, lvgl, ArduinoJson
-4. Seleccionar board: `ESP32 Dev Module`
-5. Compilar y subir
-
 ---
 
 ## 🔗 Ecosistema VO₂Smart
-
-Este firmware es parte de un ecosistema completo:
 
 ```mermaid
 graph LR
     A[vo2Procesador] -->|Firmware ESP32| B[Dispositivo físico]
     B -->|BLE / WiFi JSON| C[Vo2Smart-Interfaz]
     C -->|Dashboard web| D[Coach / Médico]
-    B -->|Pantalla TFT| E[Atleta en campo]
+    B -->|Pantalla táctil ILI9341| E[Atleta en campo]
 ```
 
 | Repo | Descripción |
@@ -215,15 +238,17 @@ graph LR
 
 ## 🔮 Roadmap
 
-- [x] 22 pantallas TFT navegables (v8.0)
+- [x] 22 pantallas TFT navegables (v8.0) — `screen.cpp`
 - [x] Gestión de perfiles en EEPROM con checksum
 - [x] 7 deportes + 6 niveles de condición física
 - [x] Estimación VO₂max y zonas de entrenamiento
-- [ ] Implementación completa de cada pantalla (métricas reales)
+- [x] **LVGL v9 + ILI9341 + XPT2046 Touch — UI avanzada v2.0**
+- [x] **6 pantallas táctiles con flujo completo Splash→Dashboard**
+- [x] **BLE scan real + perfiles desde Preferences NVS**
+- [x] **Dashboard tiempo real: VO₂, VCO₂, FC, VE, RER, Tiempo**
 - [ ] Integración BLE GATT server para transmisión JSON
 - [ ] Logging en microSD
 - [ ] OTA updates (Over-The-Air firmware)
-- [ ] LVGL UI completo en todas las pantallas
 
 ---
 
