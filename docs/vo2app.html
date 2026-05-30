@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VO₂Smart APP</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+  onerror="console.warn('Chart.js CDN failed')"></script>
+<style>
+/* ── DESIGN TOKENS ── */
+:root {
+  --bg:        #f0f3f7;
+  --bg2:       #e8edf5;
+  --card:      #ffffff;
+  --border:    #dde4ed;
+  --blue-900:  #1a2535;
+  --blue-700:  #1a56a0;
+  --blue-400:  #3b82f6;
+  --blue-100:  #ebf3ff;
+  --red:       #ef4444;
+  --amber:     #f59e0b;
+  --green:     #22c55e;
+  --muted:     #8c96a0;
+  --mono: 'DM Mono', monospace;
+  --body: 'Inter', sans-serif;
+  --r-card: 10px;
+  --r-face: 0px;
+  --topbar-h: 56px;
+  --dotnav-h: 44px;
+  --transition: 280ms cubic-bezier(.25,.46,.45,.94);
+}
+/* ── DARK MODE ── */
+body.dark {
+  --bg: #0d1626; --bg2: #0a1020; --card: #111827;
+  --blue-700: #4d9de0; --border: #1e2d42;
+  --blue-900: #f1f5f9; --muted: #64748b;
+}
+/* ── RESET ── */
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--body);background:var(--bg);color:var(--blue-900);min-height:100vh;overflow-x:hidden;transition:background .3s,color .3s;}
+/* ── LAYOUT ── */
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+/* ── TOPBAR ── */
+.topbar{
+  height:var(--topbar-h);flex-shrink:0;
+  background:linear-gradient(135deg,#1a3a6b 0%,#1a56a0 60%,#0a3070 100%);
+  display:flex;align-items:center;gap:10px;padding:0 14px;
+  box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:100;
+}
+.topbar .brand{font-family:var(--mono);font-size:1rem;font-weight:700;color:#fff;flex-shrink:0;}
+.topbar .brand span{color:#93c5fd;}
+.topbar .brand-badge{font-size:0.58rem;font-weight:700;background:rgba(147,197,253,.15);border:1px solid rgba(147,197,253,.3);color:#93c5fd;padding:2px 6px;border-radius:10px;margin-left:4px;}
+.topbar .tb-right{display:flex;align-items:center;gap:6px;margin-left:auto;}
+.status-pill{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:4px 10px;font-size:0.73rem;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap;}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#64748b;flex-shrink:0;}
+.status-dot.on{background:#22c55e;animation:pulse 2s infinite;}
+.status-dot.warn{background:#f59e0b;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.5);}70%{box-shadow:0 0 0 6px rgba(34,197,94,0);}}
+.batt-pill{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:0.7rem;color:rgba(255,255,255,.75);white-space:nowrap;}
+@media(max-width:480px){.batt-pill{display:none;}}
+.icon-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;color:#fff;transition:background .2s;}
+.icon-btn:hover{background:rgba(255,255,255,.18);}
+/* ── FACE CONTAINER ── */
+#face-container{
+  flex:1;overflow:hidden;position:relative;
+  background:var(--bg2);
+}
+.face-slide{
+  width:100%;height:100%;overflow-y:auto;overflow-x:hidden;
+  padding:14px;box-sizing:border-box;
+  will-change:transform;
+}
+/* ── DOT NAV ── */
+#dot-nav{
+  height:var(--dotnav-h);flex-shrink:0;
+  background:var(--bg);border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:0 20px;cursor:pointer;user-select:none;
+}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted);transition:all .15s;flex-shrink:0;}
+.dot.active{width:18px;border-radius:3px;background:var(--blue-700);}
+/* ── FACE PICKER MODAL ── */
+#face-picker{
+  display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;
+}
+#face-picker.open{display:flex;}
+.picker-panel{
+  background:var(--bg);border-radius:18px;padding:20px;
+  max-width:500px;width:92vw;max-height:85vh;overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
+}
+.picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+.picker-item{
+  background:var(--card);border-radius:10px;padding:10px 12px;
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  border:2px solid var(--border);transition:all .15s;
+}
+.picker-item:hover{border-color:var(--blue-400);}
+.picker-item.active{border-color:var(--blue-700);background:var(--blue-100);}
+.picker-item .pi-icon{font-size:1.2rem;}
+.picker-item .pi-label{font-size:0.78rem;font-weight:700;color:var(--blue-900);}
+.picker-item .pi-toggle{margin-left:auto;width:28px;height:16px;border-radius:8px;background:var(--muted);position:relative;transition:background .2s;}
+.picker-item .pi-toggle.on{background:var(--blue-700);}
+.picker-item .pi-toggle::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .2s;}
+.picker-item .pi-toggle.on::after{left:14px;}
+/* ── SETTINGS PANEL ── */
+#settings-panel{
+  display:none;position:fixed;top:var(--topbar-h);right:0;z-index:150;
+  background:var(--bg);border-left:1px solid var(--border);border-bottom:1px solid var(--border);
+  border-radius:0 0 0 16px;padding:16px;width:260px;
+  box-shadow:-4px 4px 20px rgba(0,0,0,.12);
+}
+#settings-panel.open{display:block;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
+.settings-row:last-child{border-bottom:none;}
+.settings-label{font-size:0.78rem;font-weight:600;color:var(--blue-900);}
+.settings-input{width:80px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--mono);font-size:0.8rem;background:var(--card);color:var(--blue-900);}
+/* ── CARD COMPONENTS ── */
+.mc{background:var(--card);border-radius:var(--r-card);box-shadow:0 1px 5px rgba(0,0,0,.07);overflow:hidden;}
+.mc-body{padding:8px 10px;}
+.mc-label{font-size:0.48rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:2px;}
+.mc-val{font-family:var(--mono);font-size:1.05rem;font-weight:800;color:var(--blue-900);line-height:1;}
+.mc-unit{font-size:0.48rem;color:var(--muted);}
+.mc-hero{padding:12px 14px;text-align:center;}
+.mc-hero .mc-label{text-align:center;}
+.mc-hero .mc-val{font-size:2.4rem;letter-spacing:-1px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.pill{font-size:0.54rem;font-weight:700;border-radius:6px;padding:2px 8px;display:inline-block;}
+.bar-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px;}
+.bar-fill{height:100%;border-radius:3px;}
+/* ── FLAG OVERLAY ── */
+#flag-overlay{
+  position:fixed;inset:0;z-index:10000;background:#000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
+  transition:opacity .9s ease;
+}
+#flag-overlay.fade-out{opacity:0;pointer-events:none;}
+.flag-cl{width:200px;height:133px;border-radius:8px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.6);}
+.flag-cl-top{display:flex;height:66px;}
+.flag-cl-canton{width:66px;height:66px;background:#0038A8;display:flex;align-items:center;justify-content:center;}
+.flag-cl-white{flex:1;background:#fff;}
+.flag-cl-red{height:67px;background:#D52B1E;}
+.flag-ch{width:133px;height:133px;border-radius:8px;background:#FF0000;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 40px rgba(0,0,0,.6);}
+.flag-ch-cross{position:relative;width:60px;height:60px;}
+.flag-ch-cross::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:18px;height:60px;background:#fff;}
+.flag-ch-cross::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:60px;height:18px;background:#fff;}
+.flag-caption{font-family:var(--mono);font-size:1.1rem;font-weight:700;color:#fff;text-align:center;}
+.flag-sub{font-size:0.7rem;color:#94a3b8;text-align:center;}
+/* ── TOAST ── */
+#toast-container{position:fixed;bottom:60px;right:14px;z-index:9999;display:flex;flex-direction:column;gap:6px;}
+.toast{background:var(--card);border-radius:10px;padding:10px 14px;font-size:0.78rem;font-weight:600;color:var(--blue-900);box-shadow:0 4px 16px rgba(0,0,0,.18);border-left:3px solid var(--blue-700);max-width:260px;animation:slideIn .2s ease;}
+.toast.error{border-color:var(--red);}
+.toast.success{border-color:var(--green);}
+.toast.warn{border-color:var(--amber);}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:none;}}
+/* ── RESPONSIVE ── */
+@media(max-width:479px){
+  #face-container{position:fixed;inset:0;top:var(--topbar-h);bottom:var(--dotnav-h);}
+  #dot-nav{position:fixed;bottom:0;width:100%;height:var(--dotnav-h);}
+}
+@media(min-width:480px) and (max-width:767px){
+  .face-slide{padding:16px;margin:0 12px;}
+  #dot-nav{position:fixed;bottom:0;width:100%;height:var(--dotnav-h);}
+}
+@media(min-width:768px){#face-container{display:flex;justify-content:center;}#face-container .face-slide{max-width:600px;}}
+@media(min-width:1200px){#face-container .face-slide{max-width:720px;}}
+/* ── PRINT ── */
+@media print{
+  .topbar,#dot-nav,#flag-overlay,#toast-container,#face-container,#face-picker,#settings-panel{display:none!important;}
+  #print-report{display:block!important;}
+  body{background:#fff;color:#000;}
+}
+#print-report{display:none;}
+</style>
+</head>
+<body>
+
+<!-- FLAG OVERLAY -->
+<div id="flag-overlay">
+  <div style="display:flex;gap:20px;align-items:center;">
+    <div class="flag-cl"><div class="flag-cl-top"><div class="flag-cl-canton">⭐</div><div class="flag-cl-white"></div></div><div class="flag-cl-red"></div></div>
+    <div class="flag-ch"><div class="flag-ch-cross"></div></div>
+  </div>
+  <div class="flag-caption">VO₂Smart APP</div>
+  <div class="flag-sub">ActionSmart Research Lab · Tecnología Suiza</div>
+</div>
+
+<!-- PRINT REPORT (hidden, shown only on print) -->
+<div id="print-report"></div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- SETTINGS PANEL -->
+<div id="settings-panel">
+  <div style="font-size:0.65rem;font-weight:800;letter-spacing:2px;color:var(--blue-700);margin-bottom:10px;">CONFIGURACIÓN</div>
+  <div class="settings-row"><span class="settings-label">Peso (kg)</span><input class="settings-input" id="s-weight" type="number" value="70" min="20" max="200"></div>
+  <div class="settings-row"><span class="settings-label">FCmax (bpm)</span><input class="settings-input" id="s-fcmax" type="number" value="190" min="120" max="220"></div>
+  <div class="settings-row"><span class="settings-label">Edad</span><input class="settings-input" id="s-age" type="number" value="35" min="10" max="90"></div>
+  <div class="settings-row"><span class="settings-label">Sexo</span><select class="settings-input" id="s-sex" style="width:80px"><option value="M">M</option><option value="F">F</option></select></div>
+  <div class="settings-row"><span class="settings-label">Factor K</span><input class="settings-input" id="s-correction" type="number" value="1.06" step="0.01" min="0.5" max="5.0"></div>
+  <div class="settings-row"><span class="settings-label">Protocolo</span><select class="settings-input" id="s-protocol" style="width:110px"><option value="RMR">RMR</option><option value="FatMax">FatMax</option><option value="Incremental">Incremental</option><option value="Steady-state">Steady-state</option><option value="CPET">CPET</option></select></div>
+  <div class="settings-row"><span class="settings-label">Modo oscuro</span><div class="pi-toggle" id="s-dark" onclick="toggleDark()"></div></div>
+  <div class="settings-row" style="justify-content:center;margin-top:6px;">
+    <a href="vo2revision.html" style="font-size:0.72rem;color:var(--blue-700);font-weight:600;">Abrir dashboard completo →</a>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="brand">VO₂<span>Smart</span><span class="brand-badge">APP</span></div>
+    <div id="tb-status" class="status-pill" onclick="onBLEClick()">
+      <div class="status-dot" id="tb-dot"></div>
+      <span id="tb-label">Conectar BLE</span>
+    </div>
+    <div class="tb-right">
+      <div class="batt-pill"><span id="tb-bat">--</span><span style="margin-left:3px;opacity:.6;font-size:.62rem;" id="tb-batv">--V</span></div>
+      <div class="icon-btn" onclick="toggleSettings()">⚙️</div>
+    </div>
+  </div>
+
+  <!-- FACE CONTAINER -->
+  <div id="face-container">
+    <div class="face-slide" id="face-slide"></div>
+  </div>
+
+  <!-- DOT NAV -->
+  <div id="dot-nav" onclick="onDotNavClick(event)" oncontextmenu="openPicker();return false;"></div>
+</div>
+
+<!-- FACE PICKER -->
+<div id="face-picker" onclick="if(event.target===this)closePicker()">
+  <div class="picker-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div style="font-size:0.65rem;font-weight:800;letter-spacing:2px;color:var(--blue-700);">CARÁTULAS</div>
+      <button onclick="closePicker()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--muted);">✕</button>
+    </div>
+    <div style="font-size:0.68rem;color:var(--muted);margin-bottom:2px;">Toca para activar · Mantén para reordenar</div>
+    <div class="picker-grid" id="picker-grid"></div>
+    <button onclick="resetFaceOrder()" style="margin-top:12px;width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.72rem;font-weight:600;color:var(--muted);cursor:pointer;">Restablecer orden</button>
+  </div>
+</div>
+
+<script>
+// ══ UTILS ══
+function safeN(v, d=0){ const n=parseFloat(v); return isFinite(n)?n:d; }
+function clamp(v,lo,hi){ return Math.min(Math.max(v,lo),hi); }
+function fmt(v, dec=1, fallback='--'){ const n=safeN(v,null); return n===null?fallback:n.toFixed(dec); }
+function toast(msg, type='info', dur=3000){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.textContent=msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(), dur);
+}
+
+// ══ APP STATE ══
+const FACE_COUNT = 10;
+const AppState = {
+  activeFace: 0,
+  faceOrder: Array.from({length:FACE_COUNT},(_,i)=>i),
+  visibleFaces: Array(FACE_COUNT).fill(true),
+  data: null,
+  peaks: { vo2:0, vco2:0, ve:0, rer:0, hr:0, ee:0 },
+  history: { vo2:[], vco2:[], rer:[], ve:[], ee:[], ts:[] },
+  session: { startTime: null, durationMs: 0, trainingLoad: 0 },
+  prefs: { weight:70, fcmax:190, age:35, sex:'M', correction:1.06, darkMode:false, protocol:'RMR' }
+};
+const HIST_MAX = 60;
+
+function saveState(){
+  try{ localStorage.setItem('vo2app_state', JSON.stringify({
+    activeFace: AppState.activeFace,
+    faceOrder:  AppState.faceOrder,
+    visibleFaces: AppState.visibleFaces,
+    peaks:      AppState.peaks,
+    prefs:      AppState.prefs,
+    session:    { trainingLoad: AppState.session.trainingLoad }
+  })); } catch(e){}
+}
+
+function loadState(){
+  try{
+    const s = JSON.parse(localStorage.getItem('vo2app_state')||'{}');
+    if(Array.isArray(s.faceOrder) && s.faceOrder.length === FACE_COUNT)
+      AppState.faceOrder = s.faceOrder;
+    if(Array.isArray(s.visibleFaces) && s.visibleFaces.length === FACE_COUNT)
+      AppState.visibleFaces = s.visibleFaces;
+    if(s.activeFace!=null) AppState.activeFace = s.activeFace;
+    if(s.peaks)        Object.assign(AppState.peaks, s.peaks);
+    if(s.prefs)        Object.assign(AppState.prefs, s.prefs);
+  } catch(e){}
+}
+
+function updateAppState(d){
+  AppState.data = d;
+  // Update peaks
+  if(d.vo2  > AppState.peaks.vo2)  AppState.peaks.vo2  = safeN(d.vo2);
+  if(d.vco2 > AppState.peaks.vco2) AppState.peaks.vco2 = safeN(d.vco2);
+  if(d.ve   > AppState.peaks.ve)   AppState.peaks.ve   = safeN(d.ve);
+  if(d.rer  > AppState.peaks.rer)  AppState.peaks.rer  = safeN(d.rer);
+  if(d.hr   > AppState.peaks.hr)   AppState.peaks.hr   = safeN(d.hr);
+  const ee = d.cal ? safeN(d.cal.eeH) : 0;
+  if(ee > AppState.peaks.ee) AppState.peaks.ee = ee;
+  // Update history ringbuffer
+  const H = AppState.history;
+  H.vo2.push(safeN(d.vo2)); H.vco2.push(safeN(d.vco2));
+  H.rer.push(safeN(d.rer)); H.ve.push(safeN(d.ve));
+  H.ee.push(ee); H.ts.push(Date.now());
+  Object.values(H).forEach(arr => { while(arr.length > HIST_MAX) arr.shift(); });
+  // Update session
+  if(!AppState.session.startTime) AppState.session.startTime = Date.now();
+  AppState.session.durationMs = Date.now() - AppState.session.startTime;
+  // Training load accumulator (for recovery calculation)
+  const vo2PctMax = AppState.prefs.weight>0 ?
+    (safeN(d.vo2) / Math.max(AppState.peaks.vo2, 40)) : 0;
+  AppState.session.trainingLoad += vo2PctMax * (1/60);
+  saveState();
+}
+
+// ══ SETTINGS SYNC ══
+function syncPrefsFromDOM(){
+  const g = id => document.getElementById(id);
+  if(g('s-weight'))     AppState.prefs.weight     = safeN(g('s-weight').value, 70);
+  if(g('s-fcmax'))      AppState.prefs.fcmax      = safeN(g('s-fcmax').value, 190);
+  if(g('s-age'))        AppState.prefs.age        = safeN(g('s-age').value, 35);
+  if(g('s-sex'))        AppState.prefs.sex        = g('s-sex').value;
+  if(g('s-correction')) AppState.prefs.correction = safeN(g('s-correction').value, 1.06);
+  if(g('s-protocol'))   AppState.prefs.protocol   = g('s-protocol').value;
+  saveState();
+}
+function syncPrefsToDOM(){
+  document.getElementById('s-weight').value     = AppState.prefs.weight;
+  document.getElementById('s-fcmax').value       = AppState.prefs.fcmax;
+  document.getElementById('s-age').value         = AppState.prefs.age;
+  document.getElementById('s-sex').value         = AppState.prefs.sex;
+  document.getElementById('s-correction').value  = AppState.prefs.correction;
+  const sp = document.getElementById('s-protocol');
+  if(sp) sp.value = AppState.prefs.protocol||'RMR';
+  if(AppState.prefs.darkMode) document.body.classList.add('dark');
+  const t = document.getElementById('s-dark');
+  if(t) t.classList.toggle('on', AppState.prefs.darkMode);
+}
+function toggleDark(){
+  AppState.prefs.darkMode = !AppState.prefs.darkMode;
+  document.body.classList.toggle('dark', AppState.prefs.darkMode);
+  document.getElementById('s-dark').classList.toggle('on', AppState.prefs.darkMode);
+  saveState();
+}
+['s-weight','s-fcmax','s-age','s-sex','s-correction','s-protocol'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('change', syncPrefsFromDOM);
+});
+
+// ══ TOPBAR BATTERY (invariant: batV<3.0 → '--') ══
+function updateTopbar(d){
+  const pct   = safeN(d.battery, -1);
+  const volts = safeN(d.batteryV, 0);
+  const batEl = document.getElementById('tb-bat');
+  const vEl   = document.getElementById('tb-batv');
+  if(pct <= 0 && volts < 3.0){
+    if(batEl) batEl.textContent='--';
+    if(vEl)   vEl.textContent='--V';
+  } else {
+    if(batEl) batEl.textContent = pct.toFixed(0)+'%';
+    if(vEl)   vEl.textContent   = volts.toFixed(2)+'V';
+  }
+}
+
+// ══ SETTINGS TOGGLE ══
+function toggleSettings(){
+  document.getElementById('settings-panel').classList.toggle('open');
+}
+document.addEventListener('click', e=>{
+  const panel = document.getElementById('settings-panel');
+  if(panel.classList.contains('open') &&
+     !panel.contains(e.target) &&
+     !e.target.closest('.icon-btn')){
+    panel.classList.remove('open');
+  }
+});
+
+// ══ BLE LAYER ══
+const BLE_SVC  = '0000ffe0-0000-1000-8000-00805f9b34fb';
+const BLE_FFE1 = '0000ffe1-0000-1000-8000-00805f9b34fb';
+const BLE_FFE3 = '0000ffe3-0000-1000-8000-00805f9b34fb';
+
+let _bleDevice=null, _bleCh=null, _bleApiCh=null, _bleBuffer='';
+let _bleChain=Promise.resolve(), _intentionalDisconnect=false;
+
+function setConnected(on, label){
+  document.getElementById('tb-dot').className='status-dot'+(on?' on':'');
+  document.getElementById('tb-label').textContent=label||'Conectar BLE';
+}
+
+// processData — extrae campos del contrato BLE (CLAUDE.md invariants)
+function processData(d){
+  // Alias legacy firmware
+  if(d.rq!==undefined && d.rer===undefined) d.rer=d.rq;
+  // rer_sbn is SSOT — do not recalculate
+  const rer = safeN(d.rer_sbn||d.rer, 0);
+  // stpdApplied:1 → do NOT re-apply STPD
+  // co2 arrives as fraction → × 100 for display
+  const co2display = safeN(d.co2, 0) * 100;
+  const o2display  = safeN(d.o2,  0) * 100;
+
+  const parsed = {
+    vo2:     safeN(d.vo2),
+    vco2:    safeN(d.vco2),
+    rer:     rer,
+    ve:      safeN(d.ve),
+    freq:    safeN(d.freq),
+    vol:     safeN(d.vol),
+    hr:      safeN(d.hr),
+    o2:      o2display,
+    co2:     co2display,
+    battery: safeN(d.battery, -1),
+    batteryV: safeN(d.batteryV, 0),
+    rfm_mode: d.rfm_mode || 'ESTIMATED',
+    o2pulse:  safeN(d.o2pulse),
+    peto2:    safeN(d.peto2),
+    petco2:   safeN(d.petco2),
+    stpdApplied: d.stpdApplied===1||d.stpdApplied===true,
+    cal: d.cal || null,
+    bxb_seq: safeN(d.bxb_seq)
+  };
+  updateTopbar(parsed);
+  updateAppState(parsed);
+  if(typeof renderActiveFace === 'function') renderActiveFace();
+}
+
+// handleBLE — buffer + JSON parse (fragmented BLE packets)
+function handleBLE(event){
+  const chunk = new TextDecoder().decode(event.target.value);
+  _bleBuffer += chunk;
+  let start = _bleBuffer.indexOf('{');
+  let end   = _bleBuffer.indexOf('}', start);
+  while(start !== -1 && end !== -1){
+    try{
+      const json = _bleBuffer.slice(start, end+1);
+      const d = JSON.parse(json);
+      processData(d);
+    }catch(e){}
+    _bleBuffer = _bleBuffer.slice(end+1);
+    start = _bleBuffer.indexOf('{');
+    end   = _bleBuffer.indexOf('}', start);
+  }
+  // Guard overflow (BLE_buffer > 1200 chars → keep last 400)
+  if(_bleBuffer.length > 1200) _bleBuffer = _bleBuffer.slice(-400);
+}
+
+function handleBLECommandResponse(event){
+  const raw = new TextDecoder().decode(event.target.value);
+  try{
+    const r = JSON.parse(raw);
+    if(r.device) setConnected(true, r.device);
+  }catch(e){}
+}
+
+async function sendBLECommand(cmd){
+  const task=_bleChain.then(()=>_sendBLEImpl(cmd));
+  _bleChain=task.catch(()=>{});
+  return task;
+}
+async function _sendBLEImpl(cmd){
+  const ch = _bleApiCh || _bleCh;
+  if(!ch){ console.warn('BLE not connected:', cmd); return null; }
+  try{
+    await ch.writeValue(new TextEncoder().encode(cmd));
+    return true;
+  }catch(e){
+    console.error('BLE TX error:', e.message);
+    return false;
+  }
+}
+
+async function connectDevice(){
+  if(!navigator.bluetooth){ toast('Web Bluetooth no soportado','error'); return; }
+  try{
+    toast('Buscando dispositivo VO₂Smart…','info');
+    const dev = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [BLE_SVC]
+    });
+    const srv = await dev.gatt.connect();
+    const svc = await srv.getPrimaryService(BLE_SVC);
+    const ch  = await svc.getCharacteristic(BLE_FFE1);
+    await ch.startNotifications();
+    ch.addEventListener('characteristicvaluechanged', handleBLE);
+    try{
+      const apiCh = await svc.getCharacteristic(BLE_FFE3);
+      await apiCh.startNotifications();
+      apiCh.addEventListener('characteristicvaluechanged', handleBLECommandResponse);
+      _bleApiCh = apiCh;
+    }catch(e){ _bleApiCh=null; }
+    // Auto-reconexión
+    dev.addEventListener('gattserverdisconnected', async ()=>{
+      if(_intentionalDisconnect){ _intentionalDisconnect=false; return; }
+      _bleCh=null; _bleApiCh=null;
+      setConnected(false, 'Conectar BLE');
+      for(let i=1;i<=3;i++){
+        toast(`Reconectando BLE (${i}/3)…`,'warn');
+        await new Promise(r=>setTimeout(r,1000*i));
+        try{
+          const srv2 = await dev.gatt.connect();
+          const svc2 = await srv2.getPrimaryService(BLE_SVC);
+          const ch2  = await svc2.getCharacteristic(BLE_FFE1);
+          await ch2.startNotifications();
+          ch2.addEventListener('characteristicvaluechanged', handleBLE);
+          try{
+            const api2=await svc2.getCharacteristic(BLE_FFE3);
+            await api2.startNotifications();
+            api2.addEventListener('characteristicvaluechanged',handleBLECommandResponse);
+            _bleApiCh=api2;
+          }catch(e2){_bleApiCh=null;}
+          _bleCh=ch2; _bleBuffer='';
+          setConnected(true, dev.name||'VO2Smart');
+          toast('BLE reconectado','success');
+          return;
+        }catch(e){}
+      }
+      toast('BLE desconectado — reconexión fallida','error');
+    });
+    _bleDevice=dev; _bleCh=ch; _bleBuffer='';
+    setConnected(true, dev.name||'VO2Smart');
+    toast('Conectado: '+(dev.name||'VO2Smart'),'success');
+    setTimeout(()=>sendBLECommand('GET_CONFIG'), 800);
+  }catch(e){
+    if(e.name!=='NotFoundError') toast('BLE error: '+e.message,'error');
+  }
+}
+
+async function disconnectDevice(){
+  _intentionalDisconnect=true;
+  if(_bleDevice&&_bleDevice.gatt.connected){
+    _bleDevice.gatt.disconnect();
+  }
+  _bleCh=null; _bleApiCh=null; _bleDevice=null; _bleBuffer='';
+  setConnected(false,'Conectar BLE');
+}
+
+function onBLEClick(){
+  if(_bleCh||_bleApiCh) disconnectDevice();
+  else connectDevice();
+}
+
+// ══ COMPONENT LIB ══
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function metricCard(label, value, unit='', color='var(--blue-900)', extra=''){
+  return `<div class="mc"><div class="mc-body">
+    <span class="mc-label">${label}</span>
+    <span class="mc-val" style="color:${color}">${value}<span class="mc-unit"> ${unit}</span></span>
+    ${extra}
+  </div></div>`;
+}
+
+function metricHero(label, value, unit='', color='var(--blue-900)'){
+  return `<div class="mc mc-hero">
+    <span class="mc-label">${label}</span>
+    <div class="mc-val" style="font-size:2.8rem;letter-spacing:-1.5px;color:${color}">${value}</div>
+    <span class="mc-unit">${unit}</span>
+  </div>`;
+}
+
+function ringMeter(valuePct, color, size=110, strokeW=9, label='', valText=''){
+  const r = (size/2) - strokeW;
+  const circ = 2*Math.PI*r;
+  const filled = clamp(valuePct,0,1)*circ;
+  const gap = circ - filled;
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="display:block;">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${strokeW}"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${strokeW}"
+      stroke-dasharray="${filled} ${gap}" stroke-linecap="round"
+      transform="rotate(-90 ${size/2} ${size/2})"/>
+    ${valText?`<text x="${size/2}" y="${size/2+2}" text-anchor="middle" dominant-baseline="middle"
+      font-family="DM Mono,monospace" font-size="${size*0.18}" font-weight="900" fill="var(--blue-900)">${valText}</text>`:''}
+    ${label?`<text x="${size/2}" y="${size/2+size*0.18}" text-anchor="middle" dominant-baseline="middle"
+      font-family="Inter,sans-serif" font-size="${size*0.09}" fill="${color}" font-weight="700">${label}</text>`:''}
+  </svg>`;
+}
+
+function activityRing(pct, color, trackColor, radius, strokeW){
+  const circ=2*Math.PI*radius;
+  const filled=clamp(pct,0,1)*circ;
+  return `<circle cx="50" cy="50" r="${radius}" fill="none" stroke="${trackColor}" stroke-width="${strokeW}"/>
+    <circle cx="50" cy="50" r="${radius}" fill="none" stroke="${color}" stroke-width="${strokeW}"
+      stroke-dasharray="${filled} ${circ-filled}" stroke-linecap="round"
+      transform="rotate(-90 50 50)"/>`;
+}
+
+function sparkLine(hist, color, h=32){
+  if(!hist||!hist.length) return '<div style="height:'+h+'px;background:var(--border);border-radius:3px;opacity:.3;"></div>';
+  const max=Math.max(...hist,1);
+  const bars=hist.slice(-10).map(v=>{
+    const pct=clamp(v/max,0,1);
+    return `<div style="flex:1;height:${Math.round(pct*h)}px;background:${color};border-radius:2px 2px 0 0;align-self:flex-end;"></div>`;
+  }).join('');
+  return `<div style="display:flex;align-items:flex-end;gap:2px;height:${h}px;">${bars}</div>`;
+}
+
+function zoneBar(zones5pct, activeZone, colors=['#bfdbfe','#93c5fd','#3b82f6','#1d4ed8','#7c3aed']){
+  const segs=zones5pct.map((p,i)=>
+    `<div style="flex:${p};height:100%;background:${colors[i]};${i===activeZone?'box-shadow:0 0 6px '+colors[i]+';':'opacity:'+(i<activeZone?0.9:0.3)+';'}"></div>`
+  ).join('');
+  return `<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;">${segs}</div>`;
+}
+
+function progressBar(pct, color='var(--blue-700)', h=6){
+  return `<div class="bar-track" style="height:${h}px"><div class="bar-fill" style="width:${clamp(pct*100,0,100)}%;background:${color};"></div></div>`;
+}
+
+function pill(text, bg='var(--blue-100)', color='var(--blue-700)'){
+  return `<span class="pill" style="background:${bg};color:${color};">${text}</span>`;
+}
+
+// ══ FACE REGISTRY ══
+const FACE_DEFS = [
+  {id:'anillo',   label:'Anillo VO₂',       icon:'⭕'},
+  {id:'gases',    label:'Gases Clínico',     icon:'🧪'},
+  {id:'sport',    label:'Deportivo+Zonas',   icon:'🏃'},
+  {id:'minimal',  label:'Minimalista',       icon:'🔢'},
+  {id:'calor',    label:'Calorimetría',      icon:'🔥'},
+  {id:'graficos', label:'Gráficos Live',     icon:'📈'},
+  {id:'fc',       label:'FC + VO₂',         icon:'❤️'},
+  {id:'peaks',    label:'Peak & Promedios',  icon:'🏆'},
+  {id:'recovery', label:'VO₂max+Recovery',  icon:'💤'},
+  {id:'export',   label:'Exportar Informe',  icon:'📄'},
+];
+
+const FaceRenders = {};
+
+function renderActiveFace(){
+  const idx = AppState.activeFace;
+  const def = FACE_DEFS[AppState.faceOrder[idx]];
+  const id  = def?.id;
+  const fn  = FaceRenders[id];
+  const el  = document.getElementById('face-slide');
+  if(!el) return;
+  if(!def){ el.innerHTML=''; return; }
+  el.innerHTML = fn
+    ? fn(AppState.data, AppState.peaks, AppState.history, AppState.prefs, AppState.session)
+    : `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:0.9rem;">${def.icon} ${esc(id)} — próximamente</div>`;
+}
+
+// ══ DOT NAV ══
+function buildDotNav(){
+  const nav=document.getElementById('dot-nav');
+  nav.innerHTML='';
+  const visible = AppState.faceOrder.filter((_,i)=>AppState.visibleFaces[i]);
+  visible.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='dot'+(i===AppState.activeFace?' active':'');
+    nav.appendChild(d);
+  });
+}
+
+function goFace(idx){
+  const visCount = AppState.visibleFaces.filter(Boolean).length;
+  AppState.activeFace = clamp(idx,0,visCount-1);
+  buildDotNav();
+  renderActiveFace();
+  saveState();
+}
+
+function onDotNavClick(e){
+  const dots = document.getElementById('dot-nav').querySelectorAll('.dot');
+  const rect  = document.getElementById('dot-nav').getBoundingClientRect();
+  const x     = e.clientX - rect.left;
+  const seg   = rect.width / (dots.length||1);
+  const idx   = Math.floor(x/seg);
+  goFace(idx);
+}
+
+// ══ SWIPE ══
+let _touchStartX=0, _touchStartY=0;
+document.getElementById('face-container').addEventListener('touchstart', e=>{
+  _touchStartX=e.touches[0].clientX;
+  _touchStartY=e.touches[0].clientY;
+},{passive:true});
+document.getElementById('face-container').addEventListener('touchend', e=>{
+  const dx=e.changedTouches[0].clientX - _touchStartX;
+  const dy=e.changedTouches[0].clientY - _touchStartY;
+  if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)){
+    if(dx<0) goFace(AppState.activeFace+1);
+    else     goFace(AppState.activeFace-1);
+  }
+},{passive:true});
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight') goFace(AppState.activeFace+1);
+  if(e.key==='ArrowLeft')  goFace(AppState.activeFace-1);
+});
+
+// ══ FACE PICKER ══
+let _dragSrc=null;
+function openPicker(){
+  const grid=document.getElementById('picker-grid');
+  grid.innerHTML=FACE_DEFS.map((f,i)=>`
+    <div class="picker-item${i===AppState.activeFace?' active':''}" draggable="true" data-idx="${i}"
+         onclick="selectFromPicker(${i})">
+      <span style="font-size:0.6rem;color:var(--muted);margin-right:4px;cursor:grab;">☰</span>
+      <span class="pi-icon">${f.icon}</span>
+      <span class="pi-label">${f.label}</span>
+      <div class="pi-toggle${AppState.visibleFaces[i]?' on':''}" onclick="event.stopPropagation();toggleFaceVisible(${i})"></div>
+    </div>`).join('');
+  // Drag-and-drop wiring (desktop + touch via dragstart/dragover/drop)
+  grid.querySelectorAll('.picker-item').forEach(el=>{
+    el.addEventListener('dragstart', e=>{ _dragSrc=el; el.style.opacity='.4'; e.dataTransfer.effectAllowed='move'; });
+    el.addEventListener('dragend',   e=>{ el.style.opacity=''; _dragSrc=null; });
+    el.addEventListener('dragover',  e=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; return false; });
+    el.addEventListener('drop', e=>{
+      e.preventDefault();
+      if(!_dragSrc||_dragSrc===el) return;
+      const from=parseInt(_dragSrc.dataset.idx);
+      const to  =parseInt(el.dataset.idx);
+      // Reorder faceOrder array
+      const fo=[...AppState.faceOrder];
+      const [moved]=fo.splice(from,1); fo.splice(to,0,moved);
+      AppState.faceOrder=fo;
+      // Reorder visibleFaces to match
+      const vf=[...AppState.visibleFaces];
+      const [mv]=vf.splice(from,1); vf.splice(to,0,mv);
+      AppState.visibleFaces=vf;
+      saveState(); openPicker(); buildDotNav();
+    });
+  });
+  document.getElementById('face-picker').classList.add('open');
+}
+function closePicker(){ document.getElementById('face-picker').classList.remove('open'); }
+function selectFromPicker(i){
+  goFace(i); closePicker();
+}
+function toggleFaceVisible(i){
+  const active=AppState.visibleFaces.filter(Boolean).length;
+  if(active<=1 && AppState.visibleFaces[i]) return;
+  AppState.visibleFaces[i]=!AppState.visibleFaces[i];
+  saveState(); openPicker(); buildDotNav();
+}
+function resetFaceOrder(){
+  AppState.faceOrder=Array.from({length:FACE_COUNT},(_,i)=>i);
+  AppState.visibleFaces=Array(FACE_COUNT).fill(true);
+  saveState(); openPicker(); buildDotNav();
+}
+// Long-press dot-nav
+let _longPressTimer=null;
+document.getElementById('dot-nav').addEventListener('touchstart',()=>{
+  _longPressTimer=setTimeout(openPicker,500);
+},{passive:true});
+document.getElementById('dot-nav').addEventListener('touchend',()=>clearTimeout(_longPressTimer),{passive:true});
+
+// ══ FACE RENDERS ══
+FaceRenders['anillo'] = function(d, peaks, hist, prefs){
+  if(!d) return '<div style="padding:20px;color:var(--muted);text-align:center;">Esperando datos BLE…</div>';
+  const vo2Pct  = clamp(safeN(d.vo2)/80, 0, 1);
+  const vco2Pct = clamp(safeN(d.vco2)/80, 0, 1);
+  const r1=46, r2=30, sw=9, size=110;
+  const c1=2*Math.PI*r1, c2=2*Math.PI*r2;
+  return `
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="mc" style="display:flex;align-items:center;justify-content:center;padding:16px 0;gap:16px;">
+      <div style="position:relative;width:${size}px;height:${size}px;flex-shrink:0;">
+        <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
+          <circle cx="55" cy="55" r="${r1}" fill="none" stroke="var(--border)" stroke-width="${sw}"/>
+          <circle cx="55" cy="55" r="${r1}" fill="none" stroke="var(--blue-700)" stroke-width="${sw}"
+            stroke-dasharray="${vo2Pct*c1} ${(1-vo2Pct)*c1}" stroke-linecap="round" transform="rotate(-90 55 55)"/>
+          <circle cx="55" cy="55" r="${r2}" fill="none" stroke="var(--border)" stroke-width="8"/>
+          <circle cx="55" cy="55" r="${r2}" fill="none" stroke="var(--blue-400)" stroke-width="8"
+            stroke-dasharray="${vco2Pct*c2} ${(1-vco2Pct)*c2}" stroke-linecap="round" transform="rotate(-90 55 55)"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <span style="font-family:var(--mono);font-size:1.6rem;font-weight:900;color:var(--blue-900);line-height:1;">${fmt(d.vo2)}</span>
+          <span style="font-size:0.45rem;color:var(--blue-700);font-weight:700;letter-spacing:1.5px;">VO₂</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div><span style="font-size:0.5rem;color:var(--blue-700);font-weight:700;display:block;letter-spacing:1px;">VO₂ mL/kg/min</span>
+             <span style="font-family:var(--mono);font-size:1.2rem;font-weight:800;color:var(--blue-900);">${fmt(d.vo2)}</span></div>
+        <div><span style="font-size:0.5rem;color:var(--blue-400);font-weight:700;display:block;letter-spacing:1px;">VCO₂ mL/kg/min</span>
+             <span style="font-family:var(--mono);font-size:1.2rem;font-weight:800;color:var(--blue-900);">${fmt(d.vco2)}</span></div>
+      </div>
+    </div>
+    <div class="grid2">
+      ${metricCard('RER', fmt(d.rer,2), '', 'var(--blue-700)')}
+      ${metricCard('VE  L/min', fmt(d.ve))}
+      ${metricCard('FR  br/min', fmt(d.freq,0))}
+      ${metricCard('VT  L', fmt(d.vol))}
+    </div>
+    <div class="mc"><div class="mc-body">
+      <span class="mc-label">RFM</span>
+      ${pill(esc(d.rfm_mode||'--'), d.rfm_mode==='VALID_FLOW'?'#dcfce7':'var(--blue-100)', d.rfm_mode==='VALID_FLOW'?'#166534':'var(--blue-700)')}
+    </div></div>
+  </div>`;
+};
+
+FaceRenders['gases'] = function(d, peaks, hist, prefs){
+  if(!d) return '<div style="padding:20px;color:var(--muted);text-align:center;">Esperando datos BLE…</div>';
+  const vo2Pct = clamp(safeN(d.vo2)/80,0,1);
+  const fase = (d.rfm_mode==='VALID_FLOW')?'EJERCICIO ACTIVO':(d.rfm_mode==='ESTIMATED'?'EN REPOSO':'TRANSICIÓN');
+  return `
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="mc mc-hero">
+      <span class="mc-label">VO₂  mL/kg/min</span>
+      <div style="font-family:var(--mono);font-size:2.8rem;font-weight:900;color:var(--blue-900);line-height:1;letter-spacing:-1px;">${fmt(d.vo2)}</div>
+      ${progressBar(vo2Pct,'linear-gradient(90deg,var(--blue-700),var(--blue-400))')}
+    </div>
+    <div class="grid2">
+      ${metricCard('O₂ exhalado', fmt(d.o2,1), '%')}
+      ${metricCard('CO₂ exhalado', fmt(d.co2,1), '%')}
+      ${metricCard('RER', fmt(d.rer,2), '', 'var(--blue-700)')}
+      ${metricCard('VE  L/min', fmt(d.ve))}
+    </div>
+    <div class="mc"><div class="mc-body" style="display:flex;align-items:center;gap:8px;">
+      <span class="mc-label">FASE:</span>
+      ${pill(fase)}
+    </div></div>
+    <div class="grid2">
+      ${metricCard('FR  br/min', fmt(d.freq,0))}
+      ${metricCard('VT  L', fmt(d.vol))}
+    </div>
+  </div>`;
+};
+
+FaceRenders['sport'] = function(d, peaks, hist, prefs){
+  if(!d) return '<div style="padding:20px;color:var(--muted);text-align:center;">Esperando datos BLE…</div>';
+  const vo2=safeN(d.vo2);
+  const norm=[{l:'Muy bajo',max:28},{l:'Bajo',max:34},{l:'Regular',max:42},{l:'Bueno',max:50},{l:'Excelente',max:60},{l:'Superior',max:999}];
+  const cls=norm.find(n=>vo2<n.max)||norm[norm.length-1];
+  const rer=safeN(d.rer);
+  const mzones=['Fat Máx','Aeróbico bajo','Aeróbico','Umbral','Anaeróbico'];
+  const mzone=rer<0.75?0:rer<0.85?1:rer<0.95?2:rer<1.05?3:4;
+  const zoneColors=['#bfdbfe','#60a5fa','#3b82f6','#f59e0b','#ef4444'];
+  return `
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="mc" style="padding:14px;text-align:center;">
+      <span style="font-size:0.5rem;color:var(--muted);letter-spacing:2px;display:block;margin-bottom:2px;">VO₂  mL/kg/min</span>
+      <span style="font-family:var(--mono);font-size:2.8rem;font-weight:900;color:var(--blue-900);line-height:1;">${fmt(vo2)}</span>
+      <div style="margin-top:6px;">${pill(esc(cls.l), 'var(--blue-100)', 'var(--blue-700)')}</div>
+    </div>
+    <div class="mc"><div class="mc-body">
+      <span class="mc-label" style="display:block;margin-bottom:6px;">ZONA METABÓLICA (RER ${fmt(rer,2)})</span>
+      ${zoneBar([1,1,1,1,1], mzone, zoneColors)}
+      <div style="margin-top:4px;">${pill(esc(mzones[mzone]), zoneColors[mzone]+'33', zoneColors[mzone])}</div>
+    </div></div>
+    <div class="grid3">
+      ${metricCard('VCO₂', fmt(d.vco2))}
+      ${metricCard('FR', fmt(d.freq,0))}
+      ${metricCard('VT L', fmt(d.vol))}
+    </div>
+    <div class="mc"><div class="mc-body">
+      <span class="mc-label">VE  L/min</span>
+      <span class="mc-val">${fmt(d.ve)}</span>
+    </div></div>
+  </div>`;
+};
+
+FaceRenders['minimal'] = function(d, peaks, hist, prefs){
+  if(!d) return '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);">Esperando BLE…</div>';
+  return `
+  <div style="display:flex;flex-direction:column;gap:12px;justify-content:center;min-height:calc(100vh - 120px);">
+    <div class="mc" style="padding:24px;text-align:center;">
+      <span style="font-size:0.5rem;color:var(--muted);letter-spacing:2px;display:block;">VO₂  mL/kg/min</span>
+      <span style="font-family:var(--mono);font-size:3.5rem;font-weight:900;color:var(--blue-900);letter-spacing:-2px;line-height:1.1;">${fmt(d.vo2)}</span>
+      <div style="width:40px;height:3px;background:var(--blue-700);border-radius:2px;margin:12px auto 0;"></div>
+    </div>
+    <div style="display:flex;background:var(--card);border-radius:var(--r-card);overflow:hidden;box-shadow:0 1px 5px rgba(0,0,0,.07);">
+      <div style="flex:1;padding:12px;text-align:center;border-right:1px solid var(--border);">
+        <span style="font-family:var(--mono);font-size:1.6rem;font-weight:900;color:var(--blue-900);display:block;">${fmt(d.rer,2)}</span>
+        <span style="font-size:0.48rem;color:var(--muted);letter-spacing:1px;">RER</span>
+      </div>
+      <div style="flex:1;padding:12px;text-align:center;border-right:1px solid var(--border);">
+        <span style="font-family:var(--mono);font-size:1.6rem;font-weight:900;color:var(--blue-900);display:block;">${fmt(d.ve,0)}</span>
+        <span style="font-size:0.48rem;color:var(--muted);letter-spacing:1px;">VE</span>
+      </div>
+      <div style="flex:1;padding:12px;text-align:center;">
+        <span style="font-family:var(--mono);font-size:1.6rem;font-weight:900;color:var(--blue-700);display:block;">${fmt(d.freq,0)}</span>
+        <span style="font-size:0.48rem;color:var(--muted);letter-spacing:1px;">FR</span>
+      </div>
+    </div>
+  </div>`;
+};
+
+// Task 6: Carátulas 5-6
+FaceRenders['calor'] = function(d, peaks, hist, prefs){
+  if(!d) return '<div style="padding:20px;color:var(--muted);text-align:center;">Esperando datos BLE…</div>';
+  if(!d.cal) return `<div style="padding:40px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);text-align:center;"><div style="font-size:2rem;">🔥</div><div style="font-size:0.78rem;">Calorimetría no disponible</div><div style="font-size:0.62rem;">Campo <span style="font-family:var(--mono);">cal</span> ausente en stream BLE</div>${pill(esc(prefs.protocol||'RMR'),'var(--blue-100)','var(--blue-700)')}</div>`;
+  const cal   = d.cal;
+  const eeMin = safeN(cal.eeMin||cal.ee1, 0);
+  const eeH   = safeN(cal.eeH, 0);
+  const fatPct= safeN(cal.fatPct, 0);
+  const choPct= safeN(cal.choPct, 0);
+  const rmr   = prefs.weight>0 ? Math.round(safeN(cal.rmr||0)||prefs.weight*24*0.9) : 0;
+  const eeRing  = clamp(eeMin/20,0,1);
+  const fatRing = clamp(fatPct/100,0,1);
+  const choRing = clamp(choPct/100,0,1);
+  return `
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="mc" style="padding:14px;">
+      <span class="mc-label" style="display:block;margin-bottom:10px;">GASTO ENERGÉTICO</span>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <svg viewBox="0 0 100 100" width="110" height="110" style="flex-shrink:0;">
+          ${activityRing(eeRing,  '#ef4444','#fee2e2', 42, 9)}
+          ${activityRing(fatRing, '#f59e0b','#fef3c7', 29, 8)}
+          ${activityRing(choRing, '#22c55e','#dcfce7', 17, 7)}
+        </svg>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div><span style="display:block;font-size:0.46rem;color:#ef4444;letter-spacing:1px;font-weight:700;">EE  kcal/min</span>
+               <span style="font-family:var(--mono);font-size:1.1rem;font-weight:900;color:var(--blue-900);">${fmt(eeMin,1)}</span></div>
+          <div><span style="display:block;font-size:0.46rem;color:#f59e0b;letter-spacing:1px;font-weight:700;">GRASA</span>
+               <span style="font-family:var(--mono);font-size:1.1rem;font-weight:900;color:var(--blue-900);">${fmt(fatPct,0)}%</span></div>
+          <div><span style="display:block;font-size:0.46rem;color:#22c55e;letter-spacing:1px;font-weight:700;">CHO</span>
+               <span style="font-family:var(--mono);font-size:1.1rem;font-weight:900;color:var(--blue-900);">${fmt(choPct,0)}%</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="grid2">
+      ${metricCard('EE total  kcal', fmt(eeH,0), '', '#ef4444')}
+      ${metricCard('RMR  kcal/día', rmr>0?rmr:'--', '', 'var(--blue-700)')}
+    </div>
+    <div class="mc"><div class="mc-body" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span class="mc-label">RER:</span>
+      <span style="font-family:var(--mono);font-weight:800;">${fmt(d.rer,2)}</span>
+      ${d.rer>1.05?pill('⚠ RER alto','#fef3c7','#b45309'):''}
+      ${pill(esc(prefs.protocol||'RMR'),'var(--blue-100)','var(--blue-700)')}
+    </div></div>
+  </div>`;
+};
+
+FaceRenders['graficos'] = function(d, peaks, hist, prefs){
+  if(!d) return '<div style="padding:20px;color:var(--muted);text-align:center;">Esperando datos BLE…</div>';
+  const trend=(arr)=>{
+    if(arr.length<2) return '→';
+    const delta=arr[arr.length-1]-arr[arr.length-2];
+    return delta>0.5?'▲':delta<-0.5?'▼':'→';
+  };
+  return `
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    <div class="mc"><div class="mc-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <span class="mc-label">VO₂  mL/kg/min</span>
+        <span style="font-family:var(--mono);font-weight:800;color:var(--blue-700);">${fmt(d.vo2)} ${trend(hist.vo2)}</span>
+      </div>
+      ${sparkLine(hist.vo2,'var(--blue-700)')}
+    </div></div>
+    <div class="mc"><div class="mc-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <span class="mc-label">RER</span>
+        <span style="font-family:var(--mono);font-weight:800;color:#f59e0b;">${fmt(d.rer,2)} ${trend(hist.rer)}</span>
+      </div>
+      ${sparkLine(hist.rer,'#f59e0b')}
+    </div></div>
+    <div class="mc"><div class="mc-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <span class="mc-label">VE  L/min</span>
+        <span style="font-family:var(--mono);font-weight:800;color:#22c55e;">${fmt(d.ve)} ${trend(hist.ve)}</span>
+      </div>
+      ${sparkLine(hist.ve,'#22c55e')}
+    </div></div>
+  </div>`;
+};
+
+// Task 7: Carátulas 7-8
+FaceRenders['fc'] = function(d, peaks, hist, prefs){
+  if(!d) return '<div style="padding:20px;color:var(--muted);text-align:center;">Esperando datos BLE…</div>';
+  const hr     = safeN(d.hr);
+  const fcmax  = prefs.fcmax||190;
+  const fcPct  = clamp(hr/fcmax,0,1);
+  const zone=fcPct<0.60?0:fcPct<0.70?1:fcPct<0.80?2:fcPct<0.90?3:4;
+  const zLabels=['Regenerativo','Aeróbico bajo','Aeróbico','Umbral','VO₂max'];
+  const zColors=['#bfdbfe','#93c5fd','#3b82f6','#f59e0b','#ef4444'];
+  const hrDisplay = hr>0 ? hr.toFixed(0) : '--';
+  const o2p = safeN(d.o2pulse);
+  return `
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="mc" style="padding:14px;display:flex;align-items:center;gap:12px;">
+      <div style="background:#fee2e2;border-radius:10px;padding:12px;text-align:center;min-width:88px;">
+        <span style="font-size:0.48rem;color:#ef4444;letter-spacing:1.5px;font-weight:700;display:block;">FC  bpm</span>
+        <span style="font-family:var(--mono);font-size:2.2rem;font-weight:900;color:#dc2626;line-height:1.1;">${hrDisplay}</span>
+        <span style="font-size:0.5rem;color:#ef4444;font-weight:700;">♥ Z${zone+1}</span>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+        <div><span style="font-size:0.48rem;color:var(--muted);letter-spacing:1px;display:block;">VO₂  mL/kg/min</span>
+             <span style="font-family:var(--mono);font-size:1.3rem;font-weight:900;color:var(--blue-900);">${fmt(d.vo2)}</span></div>
+        <div><span style="font-size:0.48rem;color:var(--muted);letter-spacing:1px;display:block;">O₂ Pulse  mL/lat</span>
+             <span style="font-family:var(--mono);font-size:1.3rem;font-weight:900;color:var(--blue-700);">${o2p>0?fmt(o2p):'--'}</span></div>
+      </div>
+    </div>
+    <div class="mc"><div class="mc-body">
+      <span class="mc-label" style="display:block;margin-bottom:6px;">ZONA FC — ${Math.round(fcPct*100)}% FCmax (${fcmax} bpm)</span>
+      ${zoneBar([1,1,1,1,1], zone, zColors)}
+      <div style="margin-top:4px;">${pill(esc(zLabels[zone]), zColors[zone]+'33', zColors[zone])}</div>
+    </div></div>
+    <div class="grid2">
+      ${metricCard('VO₂/FC ratio', hr>0&&safeN(d.vo2)>0?fmt(safeN(d.vo2)/hr,3):'--', '', 'var(--blue-700)')}
+      ${metricCard('PETO₂  mmHg', fmt(d.peto2,0))}
+    </div>
+    <div class="mc"><div class="mc-body">
+      <span class="mc-label">VE  L/min</span>
+      <span class="mc-val">${fmt(d.ve)}</span>
+    </div></div>
+  </div>`;
+};
+
+FaceRenders['peaks'] = function(d, peaks, hist, prefs, session){
+  const avg=(arr)=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;
+  const dur = session?.durationMs||0;
+  const mm  = Math.floor(dur/60000);
+  const ss  = Math.floor((dur%60000)/1000);
+  const durStr = `${mm}:${ss.toString().padStart(2,'0')}`;
+  return `
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="mc"><div class="mc-body">
+      <span class="mc-label" style="display:block;margin-bottom:8px;">VALORES PICO — SESIÓN</span>
+      <div style="display:flex;gap:0;">
+        <div style="flex:1;text-align:center;border-right:1px solid var(--border);padding:0 6px;">
+          <span style="font-size:0.46rem;color:var(--muted);letter-spacing:1px;display:block;">VO₂ pico</span>
+          <span style="font-family:var(--mono);font-size:1.2rem;font-weight:900;color:var(--blue-700);">${fmt(peaks.vo2)}</span>
+          <span style="font-size:0.44rem;color:var(--muted);display:block;">mL/kg/min</span>
+        </div>
+        <div style="flex:1;text-align:center;border-right:1px solid var(--border);padding:0 6px;">
+          <span style="font-size:0.46rem;color:var(--muted);letter-spacing:1px;display:block;">VE pico</span>
+          <span style="font-family:var(--mono);font-size:1.2rem;font-weight:900;color:var(--blue-900);">${fmt(peaks.ve)}</span>
+          <span style="font-size:0.44rem;color:var(--muted);display:block;">L/min</span>
+        </div>
+        <div style="flex:1;text-align:center;padding:0 6px;">
+          <span style="font-size:0.46rem;color:var(--muted);letter-spacing:1px;display:block;">RER pico</span>
+          <span style="font-family:var(--mono);font-size:1.2rem;font-weight:900;color:#f59e0b;">${fmt(peaks.rer,2)}</span>
+          <span style="font-size:0.44rem;color:var(--muted);display:block;">adim</span>
+        </div>
+      </div>
+    </div></div>
+    <div class="mc"><div class="mc-body">
+      <span class="mc-label" style="display:block;margin-bottom:8px;">PROMEDIOS — SESIÓN</span>
+      <div style="display:flex;gap:0;">
+        <div style="flex:1;text-align:center;border-right:1px solid var(--border);padding:0 6px;">
+          <span style="font-size:0.46rem;color:var(--muted);letter-spacing:1px;display:block;">VO₂ avg</span>
+          <span style="font-family:var(--mono);font-size:1.2rem;font-weight:900;color:var(--blue-900);">${fmt(avg(hist.vo2))}</span>
+        </div>
+        <div style="flex:1;text-align:center;border-right:1px solid var(--border);padding:0 6px;">
+          <span style="font-size:0.46rem;color:var(--muted);letter-spacing:1px;display:block;">EE avg kcal/min</span>
+          <span style="font-family:var(--mono);font-size:1.2rem;font-weight:900;color:#ef4444;">${fmt(avg(hist.ee),1)}</span>
+        </div>
+        <div style="flex:1;text-align:center;padding:0 6px;">
+          <span style="font-size:0.46rem;color:var(--muted);letter-spacing:1px;display:block;">RER avg</span>
+          <span style="font-family:var(--mono);font-size:1.2rem;font-weight:900;color:var(--blue-900);">${fmt(avg(hist.rer),2)}</span>
+        </div>
+      </div>
+    </div></div>
+    <div class="mc"><div class="mc-body" style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <span style="font-size:0.46rem;color:var(--muted);display:block;letter-spacing:1px;">EE TOTAL SESIÓN</span>
+        <span style="font-family:var(--mono);font-size:1.6rem;font-weight:900;color:#ef4444;">${fmt(peaks.ee,0)} <span style="font-size:0.7rem;color:var(--muted);">kcal</span></span>
+      </div>
+      <div style="text-align:right;">
+        <span style="font-size:0.46rem;color:var(--muted);display:block;letter-spacing:1px;">DURACIÓN</span>
+        <span style="font-family:var(--mono);font-size:1.6rem;font-weight:900;color:var(--blue-900);">${durStr}</span>
+      </div>
+    </div></div>
+  </div>`;
+};
+
+// Task 8: Carátula 9 — VO₂max + Recovery
+const VO2_NORMS = {
+  M: [{age:20,avg:44},{age:30,avg:42},{age:40,avg:40},{age:50,avg:37},{age:60,avg:33},{age:70,avg:28}],
+  F: [{age:20,avg:38},{age:30,avg:35},{age:40,avg:32},{age:50,avg:29},{age:60,avg:25},{age:70,avg:22}]
+};
+
+function normVo2(age, sex){
+  const norms=VO2_NORMS[sex]||VO2_NORMS.M;
+  const entry=norms.slice().reverse().find(n=>age>=n.age)||norms[0];
+  return entry.avg;
+}
+
+function fitnessAge(vo2max, age, sex){
+  const norm=normVo2(age, sex);
+  return Math.max(18, Math.min(age - Math.floor((vo2max-norm)/3.5), 90));
+}
+
+function acsm5Class(vo2, age, sex){
+  const norm=normVo2(age,sex);
+  if(vo2>=norm+10) return {idx:4,label:'Superior'};
+  if(vo2>=norm+4)  return {idx:3,label:'Excelente'};
+  if(vo2>=norm-2)  return {idx:2,label:'Bueno'};
+  if(vo2>=norm-8)  return {idx:1,label:'Regular'};
+  return {idx:0,label:'Bajo'};
+}
+
+function recoveryHours(session, peaks, d){
+  const sessionMin = (session?.durationMs||0)/60000;
+  if(sessionMin<5) return null;
+  const vo2pct = peaks.vo2>0 ? safeN(d?.vo2||peaks.vo2)/peaks.vo2 : 0.7;
+  const rerFactor = safeN(d?.rer,0.85) > 1.0 ? 1.3 : 1.0;
+  return Math.round(clamp(sessionMin * vo2pct * rerFactor * 0.28, 12, 72));
+}
+
+FaceRenders['recovery'] = function(d, peaks, hist, prefs, session){
+  const _isRestProto = ['RMR','Steady-state',''].includes(prefs.protocol||'RMR');
+  const vo2    = safeN(peaks.vo2||d?.vo2||0);
+  const age    = prefs.age||35;
+  const sex    = prefs.sex||'M';
+  const fa     = fitnessAge(vo2, age, sex);
+  const cls    = acsm5Class(vo2, age, sex);
+  const norm   = normVo2(age, sex);
+  const pctile = Math.round(clamp(50 + (vo2-norm)*3.5, 5, 95));
+  const recH   = recoveryHours(session, peaks, d);
+  const recPct = recH ? clamp(1-recH/72, 0, 1) : 0;
+  const segColors=['#fee2e2','#fde68a','#86efac','#34d399','#1a56a0'];
+  const segs=segColors.map((c,i)=>`<div style="flex:1;height:8px;background:${i<=cls.idx?c:'var(--border)'};${i===cls.idx?'box-shadow:0 0 6px '+c+';':''}"></div>`).join('');
+  const vo2Label = _isRestProto ? 'VO₂ PICO (REPOSO)  mL/kg/min' : 'VO₂MAX  mL/kg/min';
+  const clsBlock = _isRestProto
+    ? pill('PRUEBA EN REPOSO — sin clasificación ACSM','#fef3c7','#b45309')
+    : `<div style="display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;">${segs}</div>
+       <div style="display:flex;justify-content:space-between;margin-top:3px;">
+         <span style="font-size:0.44rem;color:var(--muted);">Bajo</span>
+         ${pill(esc(cls.label)+' · P'+pctile, 'var(--blue-100)', 'var(--blue-700)')}
+         <span style="font-size:0.44rem;color:var(--muted);">Élite</span>
+       </div>`;
+  return `
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="mc" style="padding:14px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
+        <div>
+          <span style="font-size:0.5rem;color:var(--muted);letter-spacing:2px;display:block;">${vo2Label}</span>
+          <span style="font-family:var(--mono);font-size:2.8rem;font-weight:900;color:var(--blue-900);line-height:1;">${fmt(vo2)}</span>
+        </div>
+        <div style="background:var(--blue-100);border-radius:12px;padding:10px;text-align:center;border:1.5px solid #bfdbfe;">
+          <span style="font-size:0.46rem;color:var(--blue-700);letter-spacing:1px;font-weight:700;display:block;">EDAD FIT</span>
+          <span style="font-family:var(--mono);font-size:1.8rem;font-weight:900;color:var(--blue-700);line-height:1;">${fa}</span>
+          <span style="font-size:0.46rem;color:var(--muted);display:block;">real: ${age}</span>
+        </div>
+      </div>
+      ${clsBlock}
+    </div>
+    <div class="mc" style="padding:12px 14px;">
+      <span class="mc-label" style="display:block;margin-bottom:8px;">RECUPERACIÓN ESTIMADA</span>
+      ${recH ? `
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="position:relative;width:80px;height:80px;flex-shrink:0;">
+          <svg viewBox="0 0 80 80" width="80" height="80">
+            <circle cx="40" cy="40" r="32" fill="none" stroke="var(--border)" stroke-width="8"/>
+            <circle cx="40" cy="40" r="32" fill="none" stroke="#f59e0b" stroke-width="8"
+              stroke-dasharray="${recPct*201} ${(1-recPct)*201}" stroke-linecap="round" transform="rotate(-90 40 40)"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <span style="font-family:var(--mono);font-size:1.4rem;font-weight:900;color:var(--blue-900);line-height:1;">${recH}</span>
+            <span style="font-size:0.42rem;color:#f59e0b;font-weight:700;">HORAS</span>
+          </div>
+        </div>
+        <div>
+          <span style="font-size:0.5rem;color:var(--muted);display:block;margin-bottom:4px;">CARGA SESIÓN</span>
+          ${progressBar(clamp(safeN(session?.trainingLoad,0)/10,0,1),'linear-gradient(90deg,#34d399,#f59e0b)',8)}
+          <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;">
+            ${pill('Descanso activo','#fef3c7','#b45309')}
+            ${pill('Dormir ≥8h','#dcfce7','#166534')}
+          </div>
+        </div>
+      </div>` : `<span style="font-size:0.75rem;color:var(--muted);">Iniciar sesión ≥5 min para calcular</span>`}
+    </div>
+    <div class="mc"><div class="mc-body" style="display:flex;align-items:center;gap:8px;">
+      <div style="background:var(--blue-100);border-radius:8px;padding:6px 10px;text-align:center;min-width:60px;">
+        <span style="font-size:0.44rem;color:var(--blue-700);letter-spacing:1px;font-weight:700;display:block;">PERCENTIL</span>
+        <span style="font-family:var(--mono);font-size:1.4rem;font-weight:900;color:var(--blue-700);">P${pctile}</span>
+      </div>
+      <div>
+        <span style="font-size:0.52rem;color:var(--blue-900);font-weight:600;display:block;">${sex==='M'?'Hombres':'Mujeres'} ${age-age%10}–${age-age%10+9} años</span>
+        <span style="font-size:0.48rem;color:var(--muted);">Media del grupo: ${norm} mL/kg/min</span>
+        <span style="font-size:0.48rem;color:var(--blue-700);font-weight:700;display:block;">${vo2>norm?'+':''}${fmt(vo2-norm,1)} sobre la media</span>
+      </div>
+    </div></div>
+  </div>`;
+};
+
+// Task 9: Carátula 10 — Exportar Informe
+function exportCSV(){
+  const H=AppState.history;
+  if(!H.ts.length){ toast('Sin datos para exportar','warn'); return; }
+  const headers='timestamp,vo2,vco2,rer,ve,ee';
+  const rows=H.ts.map((_,i)=>[
+    new Date(H.ts[i]).toISOString(),
+    (H.vo2[i]||0).toFixed(2),(H.vco2[i]||0).toFixed(2),
+    (H.rer[i]||0).toFixed(3),(H.ve[i]||0).toFixed(2),
+    (H.ee[i]||0).toFixed(2)
+  ].join(',')).join('\n');
+  const blob=new Blob([headers+'\n'+rows],{type:'text/csv'});
+  const a=document.createElement('a');
+  const blobUrl=URL.createObjectURL(blob);
+  a.href=blobUrl;
+  a.download=`vo2smart_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(blobUrl);
+  toast('CSV descargado','success');
+}
+
+function exportClipboard(){
+  const d=AppState.data; const p=AppState.peaks;
+  if(!d){ toast('Sin datos','warn'); return; }
+  const dur=AppState.session.durationMs;
+  const text=[
+    `VO₂Smart APP — Informe ${new Date().toLocaleDateString()}`,
+    `VO₂max pico: ${p.vo2.toFixed(1)} mL/kg/min`,
+    `VCO₂ pico: ${p.vco2.toFixed(1)} mL/kg/min`,
+    `RER pico: ${p.rer.toFixed(2)}`,
+    `VE pico: ${p.ve.toFixed(1)} L/min`,
+    `EE total: ${p.ee.toFixed(0)} kcal`,
+    `Duración: ${Math.floor(dur/60000)}:${String(Math.floor((dur%60000)/1000)).padStart(2,'0')}`,
+    `Firmware: v4.0.4 Near-Clinical | SBN41 + SDP810`,
+    `STPD: ${d.stpdApplied?'Aplicado por FW':'No aplicado'}`
+  ].join('\n');
+  navigator.clipboard.writeText(text)
+    .then(()=>toast('Resumen copiado al portapapeles','success'))
+    .catch(()=>toast('Error al copiar','error'));
+}
+
+function exportJSON(){
+  const payload=btoa(JSON.stringify({
+    peaks:AppState.peaks,
+    hist:{vo2:AppState.history.vo2,rer:AppState.history.rer,ts:AppState.history.ts},
+    prefs:AppState.prefs,
+    ts:Date.now()
+  }));
+  const url=location.href.split('#')[0]+'#data='+payload;
+  navigator.clipboard.writeText(url)
+    .then(()=>toast('URL compartida copiada','success'))
+    .catch(()=>toast('Error al copiar URL','error'));
+}
+
+function exportPDF(){
+  const d=AppState.data; const p=AppState.peaks;
+  if(!d){ toast('Sin datos BLE — conectar primero','warn'); return; }
+  const dur=AppState.session.durationMs;
+  const date=new Date().toLocaleString();
+  document.getElementById('print-report').innerHTML=`
+    <div style="font-family:serif;padding:40px;max-width:800px;margin:0 auto;">
+      <h1 style="font-size:1.4rem;border-bottom:2px solid #1a56a0;padding-bottom:8px;">Informe VO₂Smart — ${date}</h1>
+      <h2 style="font-size:1rem;color:#1a56a0;margin:16px 0 8px;">Resultados</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+        <tr><td style="padding:5px;border:1px solid #dde4ed;font-weight:bold;">VO₂max pico</td><td style="padding:5px;border:1px solid #dde4ed;">${p.vo2.toFixed(1)} mL/kg/min</td></tr>
+        <tr><td style="padding:5px;border:1px solid #dde4ed;font-weight:bold;">VCO₂ pico</td><td style="padding:5px;border:1px solid #dde4ed;">${p.vco2.toFixed(1)} mL/kg/min</td></tr>
+        <tr><td style="padding:5px;border:1px solid #dde4ed;font-weight:bold;">RER pico</td><td style="padding:5px;border:1px solid #dde4ed;">${p.rer.toFixed(2)}</td></tr>
+        <tr><td style="padding:5px;border:1px solid #dde4ed;font-weight:bold;">VE pico</td><td style="padding:5px;border:1px solid #dde4ed;">${p.ve.toFixed(1)} L/min</td></tr>
+        <tr><td style="padding:5px;border:1px solid #dde4ed;font-weight:bold;">EE total</td><td style="padding:5px;border:1px solid #dde4ed;">${p.ee.toFixed(0)} kcal</td></tr>
+        <tr><td style="padding:5px;border:1px solid #dde4ed;font-weight:bold;">Duración</td><td style="padding:5px;border:1px solid #dde4ed;">${Math.floor(dur/60000)}:${String(Math.floor((dur%60000)/1000)).padStart(2,'0')}</td></tr>
+      </table>
+      <h2 style="font-size:1rem;color:#1a56a0;margin:16px 0 8px;">Dispositivo</h2>
+      <p style="font-size:0.85rem;color:#555;">Firmware v4.0.4 Near-Clinical · SBN41 + SDP810-125Pa · STPD: ${d?.stpdApplied?'Aplicado FW':'N/A'}</p>
+      <p style="font-size:0.8rem;color:#999;margin-top:20px;">VO₂Smart APP · ActionSmart Research Lab · Patente CL 2024024875</p>
+    </div>`;
+  window.print();
+}
+
+FaceRenders['export'] = function(d, peaks, hist, prefs, session){
+  const dur=session?.durationMs||0;
+  const durStr=`${Math.floor(dur/60000)}:${String(Math.floor((dur%60000)/1000)).padStart(2,'0')}`;
+  return `
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="mc"><div class="mc-body">
+      <span class="mc-label" style="display:block;margin-bottom:8px;">RESUMEN DE SESIÓN</span>
+      <div class="grid2" style="gap:6px;">
+        <div style="background:var(--bg2);border-radius:7px;padding:7px 9px;">
+          <span style="font-size:0.44rem;color:var(--muted);display:block;">VO₂max pico</span>
+          <span style="font-family:var(--mono);font-size:1rem;font-weight:800;color:var(--blue-700);">${fmt(peaks.vo2)} <span style="font-size:0.5rem;color:var(--muted);">mL/kg/min</span></span>
+        </div>
+        <div style="background:var(--bg2);border-radius:7px;padding:7px 9px;">
+          <span style="font-size:0.44rem;color:var(--muted);display:block;">EE total</span>
+          <span style="font-family:var(--mono);font-size:1rem;font-weight:800;color:#ef4444;">${fmt(peaks.ee,0)} <span style="font-size:0.5rem;color:var(--muted);">kcal</span></span>
+        </div>
+        <div style="background:var(--bg2);border-radius:7px;padding:7px 9px;">
+          <span style="font-size:0.44rem;color:var(--muted);display:block;">RER pico</span>
+          <span style="font-family:var(--mono);font-size:1rem;font-weight:800;color:#f59e0b;">${fmt(peaks.rer,2)}</span>
+        </div>
+        <div style="background:var(--bg2);border-radius:7px;padding:7px 9px;">
+          <span style="font-size:0.44rem;color:var(--muted);display:block;">Duración</span>
+          <span style="font-family:var(--mono);font-size:1rem;font-weight:800;color:var(--blue-900);">${durStr}</span>
+        </div>
+      </div>
+    </div></div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div class="mc" onclick="exportPDF()" style="cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:#ebf3ff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">📄</div>
+        <div><span style="font-size:0.72rem;font-weight:700;color:var(--blue-900);display:block;">Exportar PDF clínico</span>
+             <span style="font-size:0.6rem;color:var(--muted);">Informe A4 · hoja completa</span></div>
+        <span style="margin-left:auto;font-size:0.6rem;color:var(--blue-700);font-weight:700;">↓</span>
+      </div>
+      <div class="mc" onclick="exportCSV()" style="cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">📊</div>
+        <div><span style="font-size:0.72rem;font-weight:700;color:var(--blue-900);display:block;">Exportar CSV datos</span>
+             <span style="font-size:0.6rem;color:var(--muted);">timestamp · vo2 · vco2 · rer · ve · ee</span></div>
+        <span style="margin-left:auto;font-size:0.6rem;color:#22c55e;font-weight:700;">↓</span>
+      </div>
+      <div class="mc" onclick="exportClipboard()" style="cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">📋</div>
+        <div><span style="font-size:0.72rem;font-weight:700;color:var(--blue-900);display:block;">Copiar resumen HCE</span>
+             <span style="font-size:0.6rem;color:var(--muted);">Texto plano · Historia Clínica</span></div>
+        <span style="margin-left:auto;font-size:0.6rem;color:#f59e0b;font-weight:700;">⎘</span>
+      </div>
+      <div class="mc" onclick="exportJSON()" style="cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:#f3e8ff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">🔗</div>
+        <div><span style="font-size:0.72rem;font-weight:700;color:var(--blue-900);display:block;">Compartir enlace</span>
+             <span style="font-size:0.6rem;color:var(--muted);">JSON base64 en URL clipboard</span></div>
+        <span style="margin-left:auto;font-size:0.6rem;color:#9333ea;font-weight:700;">↗</span>
+      </div>
+    </div>
+    <div class="mc"><div class="mc-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+      <span style="font-size:0.68rem;font-weight:700;color:var(--blue-900);">v4.0.4 Near-Clinical</span>
+      <span style="font-size:0.62rem;color:var(--muted);">SBN41 · SDP810-125Pa</span>
+      ${pill(d?.stpdApplied?'STPD ✓ FW':'STPD N/A','#dcfce7','#166534')}
+    </div></div>
+  </div>`;
+};
+
+// ══ BOOT ══
+loadState();
+syncPrefsToDOM();
+buildDotNav();
+renderActiveFace();
+// Flag overlay dismiss after 2.5s
+setTimeout(()=>{
+  const ov=document.getElementById('flag-overlay');
+  if(ov){ ov.classList.add('fade-out'); setTimeout(()=>ov.remove(),1000); }
+},2500);
+</script>
+</body>
+</html>
